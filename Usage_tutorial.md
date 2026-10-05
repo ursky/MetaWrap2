@@ -66,7 +66,7 @@ split into mates first and then follows the ordinary paired path).
 
 **Threads.** Set a default once in `~/.metawrap2/config.toml` under `[settings] threads = 24`
 and every module uses it; `-t N` on a module overrides it, and `-t all` uses every core. The
-commands below pass `-t 24` explicitly so they work whatever your config says.
+commands below pass `-t 24` explicitly so they work with whatever your config says.
 
 **Resuming a run.** Every module checkpoints its stages. If a run dies partway through, re-run
 the same command with `--resume` and it skips the stages that already finished. Use `--force`
@@ -361,7 +361,7 @@ contamination. Keep in mind that these improvements are even more dramatic in mo
 
 
 ## Step 6: Visualize the community and the extracted bins with the blobology module
-Lets use the `blobology` module to project the entire assembly onto a GC vs. abundance plane and annotate
+Let's use the `blobology` module to project the entire assembly onto a GC vs. abundance plane and annotate
 it with taxonomy and bin information. This will not only give us an idea of what these microbial
 communities are structured like, but will also show us our binning success in a more visual way.
 
@@ -398,7 +398,7 @@ produced by the `bin_refinement` module, not the `reassemble_bins` module) and t
 non-binned assembly with the `-a` option. This will give more accurate bin abundances that are in context
 of the entire community.
 
-Lets run the `quant_bins` module:
+Let's run the `quant_bins` module:
 ```
 metawrap2 quant_bins -b BIN_REFINEMENT/metawrap_50_10_bins -o QUANT_BINS -a ASSEMBLY/final_assembly.fasta CLEAN_READS/ERR*fastq
 ```
