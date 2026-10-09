@@ -1,0 +1,81 @@
+{
+  "metrics": {
+    "metabat2_concoct": {
+      "amber_accuracy_bp": 0.2844367540343471,
+      "amber_ari_bp": 0.1308748071137473,
+      "amber_assigned_bp_fraction": 0.6059520005950957,
+      "amber_completeness_bp": 0.523229716399355,
+      "amber_f1_bp": 0.6442170332983337,
+      "amber_purity_bp": 0.837985990663835
+    },
+    "metabat2_maxbin2": {
+      "amber_accuracy_bp": 0.284533232532523,
+      "amber_ari_bp": 0.1311727687346006,
+      "amber_assigned_bp_fraction": 0.605772835271411,
+      "amber_completeness_bp": 0.5234829410618926,
+      "amber_f1_bp": 0.6456441540400679,
+      "amber_purity_bp": 0.8421764309900699
+    },
+    "metabat2_maxbin2_concoct": {
+      "amber_accuracy_bp": 0.284533232532523,
+      "amber_ari_bp": 0.1311727687346006,
+      "amber_assigned_bp_fraction": 0.605772835271411,
+      "amber_completeness_bp": 0.5234829410618926,
+      "amber_f1_bp": 0.6456441540400679,
+      "amber_purity_bp": 0.8421764309900699
+    }
+  },
+  "pairs": {
+    "metabat2_concoct vs metabat2_maxbin2_concoct": {
+      "binned_a": 20281,
+      "binned_b": 20309,
+      "binned_by_both": 20148,
+      "binned_by_one_only": 294,
+      "pair_agreement": 0.999001,
+      "pairs_disagreed": 202830
+    },
+    "metabat2_maxbin2 vs metabat2_concoct": {
+      "binned_a": 20309,
+      "binned_b": 20281,
+      "binned_by_both": 20148,
+      "binned_by_one_only": 294,
+      "pair_agreement": 0.999001,
+      "pairs_disagreed": 202830
+    },
+    "metabat2_maxbin2 vs metabat2_maxbin2_concoct": {
+      "binned_a": 20309,
+      "binned_b": 20309,
+      "binned_by_both": 20309,
+      "binned_by_one_only": 0,
+      "pair_agreement": 1.0,
+      "pairs_disagreed": 0
+    }
+  },
+  "spread": {
+    "amber_ari_bp": {
+      "max": 0.1311727687346006,
+      "min": 0.1308748071137473,
+      "range": 0.000298
+    },
+    "amber_assigned_bp_fraction": {
+      "max": 0.6059520005950957,
+      "min": 0.605772835271411,
+      "range": 0.000179
+    },
+    "amber_completeness_bp": {
+      "max": 0.5234829410618926,
+      "min": 0.523229716399355,
+      "range": 0.000253
+    },
+    "amber_f1_bp": {
+      "max": 0.6456441540400679,
+      "min": 0.6442170332983337,
+      "range": 0.001427
+    },
+    "amber_purity_bp": {
+      "max": 0.8421764309900699,
+      "min": 0.837985990663835,
+      "range": 0.00419
+    }
+  }
+}

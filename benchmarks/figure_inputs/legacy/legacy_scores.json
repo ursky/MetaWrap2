@@ -1,0 +1,940 @@
+{
+  "arms": {
+    "legacy": {
+      "arm": "legacy",
+      "bins": 53,
+      "bins_high_quality": 47,
+      "bins_medium_quality": 52,
+      "bins_near_complete": 31,
+      "by_step": {
+        "assembly": 77.647,
+        "bin_refinement": 19.383,
+        "binning": 136.428,
+        "read_qc": 0.2253
+      },
+      "cpu_hours": 233.68516666666665,
+      "gunc_pass_fraction": 0.9733,
+      "high_quality_per_cpu_hour": 0.2011,
+      "per_sample": {
+        "sample_0": {
+          "bins": 14,
+          "bins_high_quality": 12,
+          "bins_medium_quality": 14,
+          "bins_near_complete": 9,
+          "bins_total": 14,
+          "genomes": [
+            {
+              "completeness": 100.0,
+              "contamination": 0.47,
+              "name": "bin_009"
+            },
+            {
+              "completeness": 100.0,
+              "contamination": 0.58,
+              "name": "bin_010"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 3.42,
+              "name": "bin_005"
+            },
+            {
+              "completeness": 99.98,
+              "contamination": 7.1,
+              "name": "bin_002"
+            },
+            {
+              "completeness": 99.98,
+              "contamination": 1.02,
+              "name": "bin_006"
+            },
+            {
+              "completeness": 99.98,
+              "contamination": 0.0,
+              "name": "bin_007"
+            },
+            {
+              "completeness": 99.79,
+              "contamination": 0.12,
+              "name": "bin_004"
+            },
+            {
+              "completeness": 97.83,
+              "contamination": 1.25,
+              "name": "bin_001"
+            },
+            {
+              "completeness": 95.42,
+              "contamination": 2.26,
+              "name": "bin_003"
+            },
+            {
+              "completeness": 92.49,
+              "contamination": 4.77,
+              "name": "bin_011"
+            },
+            {
+              "completeness": 87.18,
+              "contamination": 3.63,
+              "name": "bin_008"
+            },
+            {
+              "completeness": 86.32,
+              "contamination": 2.21,
+              "name": "bin_012"
+            },
+            {
+              "completeness": 69.1,
+              "contamination": 4.08,
+              "name": "bin_014"
+            },
+            {
+              "completeness": 67.56,
+              "contamination": 1.21,
+              "name": "bin_013"
+            }
+          ],
+          "gunc_pass_fraction": 1.0,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/legacy/BIN_REFINEMENT/sample_0/metawrap_70_10_bins"
+        },
+        "sample_1": {
+          "bins": 14,
+          "bins_high_quality": 13,
+          "bins_medium_quality": 14,
+          "bins_near_complete": 9,
+          "bins_total": 14,
+          "genomes": [
+            {
+              "completeness": 99.98,
+              "contamination": 0.64,
+              "name": "bin_009"
+            },
+            {
+              "completeness": 99.5,
+              "contamination": 1.05,
+              "name": "bin_003"
+            },
+            {
+              "completeness": 99.03,
+              "contamination": 2.4,
+              "name": "bin_002"
+            },
+            {
+              "completeness": 93.37,
+              "contamination": 0.42,
+              "name": "bin_001"
+            },
+            {
+              "completeness": 92.15,
+              "contamination": 5.41,
+              "name": "bin_008"
+            },
+            {
+              "completeness": 92.09,
+              "contamination": 0.65,
+              "name": "bin_011"
+            },
+            {
+              "completeness": 91.95,
+              "contamination": 3.17,
+              "name": "bin_010"
+            },
+            {
+              "completeness": 91.34,
+              "contamination": 1.31,
+              "name": "bin_006"
+            },
+            {
+              "completeness": 90.7,
+              "contamination": 2.62,
+              "name": "bin_012"
+            },
+            {
+              "completeness": 90.62,
+              "contamination": 4.67,
+              "name": "bin_005"
+            },
+            {
+              "completeness": 90.02,
+              "contamination": 6.42,
+              "name": "bin_007"
+            },
+            {
+              "completeness": 85.71,
+              "contamination": 6.49,
+              "name": "bin_014"
+            },
+            {
+              "completeness": 81.2,
+              "contamination": 2.84,
+              "name": "bin_013"
+            },
+            {
+              "completeness": 63.15,
+              "contamination": 2.34,
+              "name": "bin_004"
+            }
+          ],
+          "gunc_pass_fraction": 1.0,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/legacy/BIN_REFINEMENT/sample_1/metawrap_70_10_bins"
+        },
+        "sample_10": {
+          "bins": 25,
+          "bins_high_quality": 22,
+          "bins_medium_quality": 24,
+          "bins_near_complete": 13,
+          "bins_total": 25,
+          "genomes": [
+            {
+              "completeness": 100.0,
+              "contamination": 0.55,
+              "name": "bin_012"
+            },
+            {
+              "completeness": 100.0,
+              "contamination": 0.57,
+              "name": "bin_013"
+            },
+            {
+              "completeness": 100.0,
+              "contamination": 0.36,
+              "name": "bin_018"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 1.34,
+              "name": "bin_001"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 0.55,
+              "name": "bin_007"
+            },
+            {
+              "completeness": 99.98,
+              "contamination": 0.01,
+              "name": "bin_021"
+            },
+            {
+              "completeness": 99.96,
+              "contamination": 0.76,
+              "name": "bin_010"
+            },
+            {
+              "completeness": 99.95,
+              "contamination": 1.13,
+              "name": "bin_014"
+            },
+            {
+              "completeness": 99.92,
+              "contamination": 1.31,
+              "name": "bin_011"
+            },
+            {
+              "completeness": 99.87,
+              "contamination": 0.33,
+              "name": "bin_003"
+            },
+            {
+              "completeness": 93.72,
+              "contamination": 4.73,
+              "name": "bin_023"
+            },
+            {
+              "completeness": 93.63,
+              "contamination": 5.94,
+              "name": "bin_008"
+            },
+            {
+              "completeness": 93.24,
+              "contamination": 0.32,
+              "name": "bin_002"
+            },
+            {
+              "completeness": 91.61,
+              "contamination": 2.98,
+              "name": "bin_022"
+            },
+            {
+              "completeness": 90.44,
+              "contamination": 8.07,
+              "name": "bin_020"
+            },
+            {
+              "completeness": 89.34,
+              "contamination": 2.14,
+              "name": "bin_015"
+            },
+            {
+              "completeness": 85.89,
+              "contamination": 4.18,
+              "name": "bin_009"
+            },
+            {
+              "completeness": 85.41,
+              "contamination": 2.81,
+              "name": "bin_005"
+            },
+            {
+              "completeness": 84.83,
+              "contamination": 1.77,
+              "name": "bin_006"
+            },
+            {
+              "completeness": 81.33,
+              "contamination": 1.55,
+              "name": "bin_004"
+            },
+            {
+              "completeness": 81.22,
+              "contamination": 11.63,
+              "name": "bin_019"
+            },
+            {
+              "completeness": 78.04,
+              "contamination": 2.38,
+              "name": "bin_017"
+            },
+            {
+              "completeness": 72.34,
+              "contamination": 1.67,
+              "name": "bin_024"
+            },
+            {
+              "completeness": 69.64,
+              "contamination": 2.17,
+              "name": "bin_016"
+            },
+            {
+              "completeness": 58.54,
+              "contamination": 2.55,
+              "name": "bin_025"
+            }
+          ],
+          "gunc_pass_fraction": 0.92,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/legacy/BIN_REFINEMENT/sample_10/metawrap_70_10_bins"
+        }
+      }
+    },
+    "modern": {
+      "arm": "modern",
+      "bins": 47,
+      "bins_high_quality": 45,
+      "bins_medium_quality": 47,
+      "bins_near_complete": 24,
+      "by_step": {
+        "assembly": 83.0812,
+        "bin_refinement": 11.9551,
+        "binning": 1.8195,
+        "read_qc": 0.1961
+      },
+      "cpu_hours": 97.05377777777778,
+      "gunc_pass_fraction": 0.9307,
+      "high_quality_per_cpu_hour": 0.4637,
+      "per_sample": {
+        "sample_0": {
+          "bins": 11,
+          "bins_high_quality": 11,
+          "bins_medium_quality": 11,
+          "bins_near_complete": 7,
+          "bins_total": 11,
+          "genomes": [
+            {
+              "completeness": 100.0,
+              "contamination": 0.58,
+              "name": "bin_003"
+            },
+            {
+              "completeness": 100.0,
+              "contamination": 2.82,
+              "name": "bin_011"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 0.18,
+              "name": "bin_009"
+            },
+            {
+              "completeness": 99.95,
+              "contamination": 0.0,
+              "name": "bin_010"
+            },
+            {
+              "completeness": 99.92,
+              "contamination": 3.33,
+              "name": "bin_007"
+            },
+            {
+              "completeness": 99.62,
+              "contamination": 2.19,
+              "name": "bin_008"
+            },
+            {
+              "completeness": 95.23,
+              "contamination": 0.11,
+              "name": "bin_006"
+            },
+            {
+              "completeness": 90.18,
+              "contamination": 5.52,
+              "name": "bin_002"
+            },
+            {
+              "completeness": 89.85,
+              "contamination": 2.17,
+              "name": "bin_004"
+            },
+            {
+              "completeness": 89.62,
+              "contamination": 2.12,
+              "name": "bin_001"
+            },
+            {
+              "completeness": 83.63,
+              "contamination": 2.04,
+              "name": "bin_005"
+            }
+          ],
+          "gunc_pass_fraction": 1.0,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/modern/BIN_REFINEMENT/sample_0/metawrap_70_10_bins"
+        },
+        "sample_1": {
+          "bins": 14,
+          "bins_high_quality": 13,
+          "bins_medium_quality": 14,
+          "bins_near_complete": 5,
+          "bins_total": 14,
+          "genomes": [
+            {
+              "completeness": 99.98,
+              "contamination": 0.56,
+              "name": "bin_010"
+            },
+            {
+              "completeness": 97.76,
+              "contamination": 1.37,
+              "name": "bin_011"
+            },
+            {
+              "completeness": 96.66,
+              "contamination": 0.36,
+              "name": "bin_005"
+            },
+            {
+              "completeness": 96.11,
+              "contamination": 2.38,
+              "name": "bin_006"
+            },
+            {
+              "completeness": 94.42,
+              "contamination": 4.72,
+              "name": "bin_002"
+            },
+            {
+              "completeness": 88.78,
+              "contamination": 2.69,
+              "name": "bin_009"
+            },
+            {
+              "completeness": 88.36,
+              "contamination": 1.24,
+              "name": "bin_001"
+            },
+            {
+              "completeness": 85.48,
+              "contamination": 0.86,
+              "name": "bin_004"
+            },
+            {
+              "completeness": 84.04,
+              "contamination": 1.28,
+              "name": "bin_013"
+            },
+            {
+              "completeness": 83.82,
+              "contamination": 2.19,
+              "name": "bin_008"
+            },
+            {
+              "completeness": 83.64,
+              "contamination": 2.59,
+              "name": "bin_012"
+            },
+            {
+              "completeness": 83.46,
+              "contamination": 2.1,
+              "name": "bin_007"
+            },
+            {
+              "completeness": 82.12,
+              "contamination": 7.33,
+              "name": "bin_014"
+            },
+            {
+              "completeness": 61.07,
+              "contamination": 2.27,
+              "name": "bin_003"
+            }
+          ],
+          "gunc_pass_fraction": 0.9285714285714286,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/modern/BIN_REFINEMENT/sample_1/metawrap_70_10_bins"
+        },
+        "sample_10": {
+          "bins": 22,
+          "bins_high_quality": 21,
+          "bins_medium_quality": 22,
+          "bins_near_complete": 12,
+          "bins_total": 22,
+          "genomes": [
+            {
+              "completeness": 99.99,
+              "contamination": 0.35,
+              "name": "bin_001"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 0.6,
+              "name": "bin_009"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 0.51,
+              "name": "bin_011"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 0.6,
+              "name": "bin_015"
+            },
+            {
+              "completeness": 99.96,
+              "contamination": 2.87,
+              "name": "bin_017"
+            },
+            {
+              "completeness": 99.93,
+              "contamination": 0.76,
+              "name": "bin_013"
+            },
+            {
+              "completeness": 99.93,
+              "contamination": 0.31,
+              "name": "bin_014"
+            },
+            {
+              "completeness": 99.93,
+              "contamination": 1.23,
+              "name": "bin_016"
+            },
+            {
+              "completeness": 99.87,
+              "contamination": 0.03,
+              "name": "bin_019"
+            },
+            {
+              "completeness": 94.05,
+              "contamination": 0.29,
+              "name": "bin_004"
+            },
+            {
+              "completeness": 92.24,
+              "contamination": 1.26,
+              "name": "bin_006"
+            },
+            {
+              "completeness": 90.65,
+              "contamination": 2.49,
+              "name": "bin_002"
+            },
+            {
+              "completeness": 89.96,
+              "contamination": 5.83,
+              "name": "bin_020"
+            },
+            {
+              "completeness": 88.21,
+              "contamination": 6.9,
+              "name": "bin_005"
+            },
+            {
+              "completeness": 82.99,
+              "contamination": 2.09,
+              "name": "bin_007"
+            },
+            {
+              "completeness": 81.48,
+              "contamination": 1.33,
+              "name": "bin_012"
+            },
+            {
+              "completeness": 79.78,
+              "contamination": 1.24,
+              "name": "bin_010"
+            },
+            {
+              "completeness": 79.67,
+              "contamination": 2.2,
+              "name": "bin_018"
+            },
+            {
+              "completeness": 77.67,
+              "contamination": 2.6,
+              "name": "bin_003"
+            },
+            {
+              "completeness": 76.43,
+              "contamination": 2.53,
+              "name": "bin_021"
+            },
+            {
+              "completeness": 71.94,
+              "contamination": 0.82,
+              "name": "bin_008"
+            },
+            {
+              "completeness": 63.97,
+              "contamination": 0.79,
+              "name": "bin_022"
+            }
+          ],
+          "gunc_pass_fraction": 0.8636363636363636,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/modern/BIN_REFINEMENT/sample_10/metawrap_70_10_bins"
+        }
+      }
+    },
+    "mw1": {
+      "arm": "mw1",
+      "bins": 56,
+      "bins_high_quality": 52,
+      "bins_medium_quality": 55,
+      "bins_near_complete": 26,
+      "by_step": {
+        "assembly": 79.5133,
+        "bin_refinement": 14.0803,
+        "binning": 38.4223
+      },
+      "cpu_hours": 132.0159,
+      "gunc_pass_fraction": 0.9199,
+      "high_quality_per_cpu_hour": 0.3939,
+      "per_sample": {
+        "sample_0": {
+          "bins": 14,
+          "bins_high_quality": 12,
+          "bins_medium_quality": 14,
+          "bins_near_complete": 9,
+          "bins_total": 14,
+          "genomes": [
+            {
+              "completeness": 100.0,
+              "contamination": 0.58,
+              "name": "bin.13"
+            },
+            {
+              "completeness": 100.0,
+              "contamination": 7.26,
+              "name": "bin.2"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 3.47,
+              "name": "bin.3"
+            },
+            {
+              "completeness": 99.98,
+              "contamination": 0.0,
+              "name": "bin.4"
+            },
+            {
+              "completeness": 99.98,
+              "contamination": 1.02,
+              "name": "bin.6"
+            },
+            {
+              "completeness": 99.97,
+              "contamination": 0.23,
+              "name": "bin.9"
+            },
+            {
+              "completeness": 99.79,
+              "contamination": 0.12,
+              "name": "bin.14"
+            },
+            {
+              "completeness": 97.9,
+              "contamination": 1.25,
+              "name": "bin.10"
+            },
+            {
+              "completeness": 97.21,
+              "contamination": 2.13,
+              "name": "bin.7"
+            },
+            {
+              "completeness": 92.28,
+              "contamination": 4.28,
+              "name": "bin.5"
+            },
+            {
+              "completeness": 86.68,
+              "contamination": 1.84,
+              "name": "bin.12"
+            },
+            {
+              "completeness": 86.08,
+              "contamination": 3.72,
+              "name": "bin.1"
+            },
+            {
+              "completeness": 69.86,
+              "contamination": 4.08,
+              "name": "bin.11"
+            },
+            {
+              "completeness": 67.56,
+              "contamination": 1.21,
+              "name": "bin.8"
+            }
+          ],
+          "gunc_pass_fraction": 1.0,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/BIN_REFINEMENT/sample_0/metawrap_70_10_bins",
+          "scored_via": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/BIN_REFINEMENT/sample_0/metawrap_70_10_bins.as_fasta"
+        },
+        "sample_1": {
+          "bins": 16,
+          "bins_high_quality": 16,
+          "bins_medium_quality": 16,
+          "bins_near_complete": 7,
+          "bins_total": 16,
+          "genomes": [
+            {
+              "completeness": 99.98,
+              "contamination": 0.64,
+              "name": "bin.13"
+            },
+            {
+              "completeness": 99.39,
+              "contamination": 1.07,
+              "name": "bin.4"
+            },
+            {
+              "completeness": 99.03,
+              "contamination": 2.4,
+              "name": "bin.12"
+            },
+            {
+              "completeness": 94.06,
+              "contamination": 5.42,
+              "name": "bin.9"
+            },
+            {
+              "completeness": 93.44,
+              "contamination": 0.43,
+              "name": "bin.8"
+            },
+            {
+              "completeness": 93.13,
+              "contamination": 5.07,
+              "name": "bin.1"
+            },
+            {
+              "completeness": 92.09,
+              "contamination": 0.65,
+              "name": "bin.3"
+            },
+            {
+              "completeness": 91.34,
+              "contamination": 1.31,
+              "name": "bin.6"
+            },
+            {
+              "completeness": 90.57,
+              "contamination": 2.61,
+              "name": "bin.11"
+            },
+            {
+              "completeness": 89.73,
+              "contamination": 5.84,
+              "name": "bin.15"
+            },
+            {
+              "completeness": 89.42,
+              "contamination": 2.37,
+              "name": "bin.14"
+            },
+            {
+              "completeness": 86.87,
+              "contamination": 4.38,
+              "name": "bin.16"
+            },
+            {
+              "completeness": 84.9,
+              "contamination": 5.08,
+              "name": "bin.7"
+            },
+            {
+              "completeness": 82.76,
+              "contamination": 6.03,
+              "name": "bin.10"
+            },
+            {
+              "completeness": 81.47,
+              "contamination": 5.34,
+              "name": "bin.5"
+            },
+            {
+              "completeness": 74.12,
+              "contamination": 2.6,
+              "name": "bin.2"
+            }
+          ],
+          "gunc_pass_fraction": 0.875,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/BIN_REFINEMENT/sample_1/metawrap_70_10_bins",
+          "scored_via": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/BIN_REFINEMENT/sample_1/metawrap_70_10_bins.as_fasta"
+        },
+        "sample_10": {
+          "bins": 26,
+          "bins_high_quality": 24,
+          "bins_medium_quality": 25,
+          "bins_near_complete": 10,
+          "bins_total": 26,
+          "genomes": [
+            {
+              "completeness": 100.0,
+              "contamination": 0.57,
+              "name": "bin.16"
+            },
+            {
+              "completeness": 100.0,
+              "contamination": 0.36,
+              "name": "bin.26"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 0.55,
+              "name": "bin.10"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 1.35,
+              "name": "bin.19"
+            },
+            {
+              "completeness": 99.99,
+              "contamination": 0.6,
+              "name": "bin.23"
+            },
+            {
+              "completeness": 99.97,
+              "contamination": 0.0,
+              "name": "bin.12"
+            },
+            {
+              "completeness": 99.97,
+              "contamination": 0.87,
+              "name": "bin.20"
+            },
+            {
+              "completeness": 99.96,
+              "contamination": 0.76,
+              "name": "bin.17"
+            },
+            {
+              "completeness": 99.91,
+              "contamination": 1.31,
+              "name": "bin.18"
+            },
+            {
+              "completeness": 99.87,
+              "contamination": 0.33,
+              "name": "bin.6"
+            },
+            {
+              "completeness": 93.98,
+              "contamination": 5.09,
+              "name": "bin.27"
+            },
+            {
+              "completeness": 90.84,
+              "contamination": 9.03,
+              "name": "bin.8"
+            },
+            {
+              "completeness": 89.0,
+              "contamination": 2.16,
+              "name": "bin.4"
+            },
+            {
+              "completeness": 86.88,
+              "contamination": 3.19,
+              "name": "bin.2"
+            },
+            {
+              "completeness": 86.24,
+              "contamination": 7.93,
+              "name": "bin.22"
+            },
+            {
+              "completeness": 85.98,
+              "contamination": 4.19,
+              "name": "bin.7"
+            },
+            {
+              "completeness": 83.64,
+              "contamination": 1.81,
+              "name": "bin.15"
+            },
+            {
+              "completeness": 83.4,
+              "contamination": 0.04,
+              "name": "bin.21"
+            },
+            {
+              "completeness": 83.1,
+              "contamination": 2.58,
+              "name": "bin.5"
+            },
+            {
+              "completeness": 82.41,
+              "contamination": 11.81,
+              "name": "bin.11"
+            },
+            {
+              "completeness": 81.53,
+              "contamination": 1.51,
+              "name": "bin.13"
+            },
+            {
+              "completeness": 77.31,
+              "contamination": 2.54,
+              "name": "bin.1"
+            },
+            {
+              "completeness": 74.77,
+              "contamination": 6.26,
+              "name": "bin.9"
+            },
+            {
+              "completeness": 74.56,
+              "contamination": 0.29,
+              "name": "bin.14"
+            },
+            {
+              "completeness": 73.37,
+              "contamination": 1.73,
+              "name": "bin.3"
+            },
+            {
+              "completeness": 58.32,
+              "contamination": 2.96,
+              "name": "bin.25"
+            }
+          ],
+          "gunc_pass_fraction": 0.8846153846153846,
+          "path": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/BIN_REFINEMENT/sample_10/metawrap_70_10_bins",
+          "scored_via": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/BIN_REFINEMENT/sample_10/metawrap_70_10_bins.as_fasta"
+        }
+      }
+    }
+  },
+  "scored_at": "2026-10-06T00:01:21"
+}

@@ -1,0 +1,50 @@
+{
+  "0": {
+    "amber_accuracy_bp": 0.3196646522167949,
+    "amber_ari_bp": 0.1444816685711073,
+    "amber_assigned_bp_fraction": 0.6251323903617573,
+    "amber_completeness_bp": 0.5455998650998617,
+    "amber_f1_bp": 0.66070694565586,
+    "amber_purity_bp": 0.8373697152725423
+  },
+  "100": {
+    "amber_accuracy_bp": 0.03166490906138736,
+    "amber_ari_bp": 0.9995370894229506,
+    "amber_assigned_bp_fraction": 0.03167400173022335,
+    "amber_completeness_bp": 0.02695520390722994,
+    "amber_f1_bp": 0.05249511749343422,
+    "amber_purity_bp": 0.9998065945537282
+  },
+  "90": {
+    "amber_accuracy_bp": 0.32047712883520646,
+    "amber_ari_bp": 0.14413241596504855,
+    "amber_assigned_bp_fraction": 0.626767181936971,
+    "amber_completeness_bp": 0.5478750544043628,
+    "amber_f1_bp": 0.6624141595658264,
+    "amber_purity_bp": 0.8375030835646607
+  },
+  "95": {
+    "amber_accuracy_bp": 0.3013944785625049,
+    "amber_ari_bp": 0.12735315138828077,
+    "amber_assigned_bp_fraction": 0.6246715622915601,
+    "amber_completeness_bp": 0.5457655301758579,
+    "amber_f1_bp": 0.6573875449714711,
+    "amber_purity_bp": 0.8264075111155891
+  },
+  "97": {
+    "amber_accuracy_bp": 0.264469816808125,
+    "amber_ari_bp": 0.12844261238924834,
+    "amber_assigned_bp_fraction": 0.6060775827045513,
+    "amber_completeness_bp": 0.5218844749219689,
+    "amber_f1_bp": 0.6370666618014118,
+    "amber_purity_bp": 0.8174903610322372
+  },
+  "99": {
+    "amber_accuracy_bp": 0.0835330468886594,
+    "amber_ari_bp": 0.3930075655796642,
+    "amber_assigned_bp_fraction": 0.16318389809049047,
+    "amber_completeness_bp": 0.14511719013284652,
+    "amber_f1_bp": 0.2452138273168,
+    "amber_purity_bp": 0.7904110294320587
+  }
+}

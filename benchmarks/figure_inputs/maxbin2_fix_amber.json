@@ -1,0 +1,22 @@
+{
+  "metrics": {
+    "buggy": {
+      "amber_accuracy_bp": 0.3083917463114068,
+      "amber_ari_bp": 0.7079355619418493,
+      "amber_f1_bp": 0.4228070599769765,
+      "amber_assigned_bp_fraction": 0.41138615361190084,
+      "amber_purity_bp": 0.648476231763501,
+      "amber_completeness_bp": 0.3136552888150987
+    },
+    "fixed": {
+      "amber_accuracy_bp": 0.33376805225547673,
+      "amber_ari_bp": 0.8747158655128073,
+      "amber_f1_bp": 0.4597748460828993,
+      "amber_assigned_bp_fraction": 0.3747368067705407,
+      "amber_purity_bp": 0.8016459392062055,
+      "amber_completeness_bp": 0.32231845078920235
+    }
+  },
+  "amber_cpu_hours": 0.0062,
+  "amber_wall_seconds": 10.9
+}

@@ -1,0 +1,53 @@
+{
+  "arms": {
+    "a_coassembly": {
+      "arm": "a_coassembly",
+      "cpu_hours": 85.14,
+      "note": "re-run 2026-10-06 after the planner fix for a co-assembly with no read_qc step",
+      "returncode": 0,
+      "usage": {
+        "wall_seconds": 5360.0
+      }
+    },
+    "b_single_sample": {
+      "arm": "b_single_sample",
+      "cpu_hours": 89.05133333333333,
+      "returncode": 0,
+      "usage": {
+        "peak_rss_bytes": 12525719552,
+        "system_seconds": 7740.6,
+        "user_seconds": 312844.2,
+        "wall_seconds": 6116.5
+      }
+    },
+    "c_multi_sample": {
+      "arm": "c_multi_sample",
+      "cpu_hours": 90.94399999999999,
+      "returncode": 0,
+      "usage": {
+        "peak_rss_bytes": 13152215040,
+        "system_seconds": 8126.3,
+        "user_seconds": 319272.1,
+        "wall_seconds": 6293.1
+      }
+    },
+    "d_multi_sample_fairy": {
+      "arm": "d_multi_sample_fairy",
+      "cpu_hours": 86.25541666666666,
+      "returncode": 0,
+      "usage": {
+        "peak_rss_bytes": 13111353344,
+        "system_seconds": 8502.0,
+        "user_seconds": 302017.5,
+        "wall_seconds": 5557.7
+      }
+    }
+  },
+  "extra": {
+    "a_dereplicate": {
+      "cpu_hours": 0.0002,
+      "returncode": 1
+    }
+  },
+  "started_at": "2026-10-06T02:15:19"
+}

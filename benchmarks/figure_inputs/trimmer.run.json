@@ -1,0 +1,607 @@
+{
+  "budget": {
+    "disk_check_interval": 60,
+    "disk_fraction": 0.7,
+    "gpus": 8,
+    "machine_cores": 192,
+    "machine_gpus": 8,
+    "machine_memory_bytes": 781912821760,
+    "memory_bytes": 625530257408,
+    "threads": 96
+  },
+  "comparison": "trimmer",
+  "dataset": "cami2_gi",
+  "started_at": "2026-09-30T01:43:03",
+  "variants": {
+    "fastp": {
+      "returncode": 0,
+      "runs": [
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_0",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_0_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_0_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_0",
+          "returncode": 0,
+          "sample": "sample_0",
+          "usage": {
+            "peak_rss_bytes": 1384529920,
+            "system_seconds": 21.4,
+            "user_seconds": 216.3,
+            "wall_seconds": 58.5
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_1",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_1_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_1_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_1",
+          "returncode": 0,
+          "sample": "sample_1",
+          "usage": {
+            "peak_rss_bytes": 1387679744,
+            "system_seconds": 22.2,
+            "user_seconds": 218.3,
+            "wall_seconds": 61.6
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_10",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_10_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_10_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_10",
+          "returncode": 0,
+          "sample": "sample_10",
+          "usage": {
+            "peak_rss_bytes": 1387663360,
+            "system_seconds": 22.9,
+            "user_seconds": 216.7,
+            "wall_seconds": 59.9
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_11",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_11_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_11_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_11",
+          "returncode": 0,
+          "sample": "sample_11",
+          "usage": {
+            "peak_rss_bytes": 1386094592,
+            "system_seconds": 21.9,
+            "user_seconds": 218.4,
+            "wall_seconds": 59.6
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_12",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_12_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_12_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_12",
+          "returncode": 0,
+          "sample": "sample_12",
+          "usage": {
+            "peak_rss_bytes": 1386090496,
+            "system_seconds": 22.7,
+            "user_seconds": 219.4,
+            "wall_seconds": 60.5
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_2",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_2_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_2_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_2",
+          "returncode": 0,
+          "sample": "sample_2",
+          "usage": {
+            "peak_rss_bytes": 1387675648,
+            "system_seconds": 22.8,
+            "user_seconds": 218.6,
+            "wall_seconds": 62.3
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_3",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_3_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_3_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_3",
+          "returncode": 0,
+          "sample": "sample_3",
+          "usage": {
+            "peak_rss_bytes": 1384521728,
+            "system_seconds": 22.6,
+            "user_seconds": 215.3,
+            "wall_seconds": 62.0
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_4",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_4_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_4_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_4",
+          "returncode": 0,
+          "sample": "sample_4",
+          "usage": {
+            "peak_rss_bytes": 1384509440,
+            "system_seconds": 23.2,
+            "user_seconds": 219.8,
+            "wall_seconds": 60.9
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_5",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_5_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_5_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_5",
+          "returncode": 0,
+          "sample": "sample_5",
+          "usage": {
+            "peak_rss_bytes": 1389223936,
+            "system_seconds": 21.8,
+            "user_seconds": 212.7,
+            "wall_seconds": 58.3
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "fastp",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_9",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_9_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_9_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/fastp/sample_9",
+          "returncode": 0,
+          "sample": "sample_9",
+          "usage": {
+            "peak_rss_bytes": 1384521728,
+            "system_seconds": 21.1,
+            "user_seconds": 215.2,
+            "wall_seconds": 61.0
+          }
+        }
+      ]
+    },
+    "trim_galore": {
+      "returncode": 0,
+      "runs": [
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_0",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_0_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_0_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_0",
+          "returncode": 0,
+          "sample": "sample_0",
+          "usage": {
+            "peak_rss_bytes": 102555648,
+            "system_seconds": 61.8,
+            "user_seconds": 207.0,
+            "wall_seconds": 88.1
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_1",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_1_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_1_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_1",
+          "returncode": 0,
+          "sample": "sample_1",
+          "usage": {
+            "peak_rss_bytes": 106201088,
+            "system_seconds": 60.5,
+            "user_seconds": 203.7,
+            "wall_seconds": 87.8
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_10",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_10_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_10_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_10",
+          "returncode": 0,
+          "sample": "sample_10",
+          "usage": {
+            "peak_rss_bytes": 104861696,
+            "system_seconds": 57.5,
+            "user_seconds": 196.8,
+            "wall_seconds": 86.1
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_11",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_11_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_11_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_11",
+          "returncode": 0,
+          "sample": "sample_11",
+          "usage": {
+            "peak_rss_bytes": 106913792,
+            "system_seconds": 60.2,
+            "user_seconds": 192.1,
+            "wall_seconds": 86.5
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_12",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_12_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_12_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_12",
+          "returncode": 0,
+          "sample": "sample_12",
+          "usage": {
+            "peak_rss_bytes": 104734720,
+            "system_seconds": 52.0,
+            "user_seconds": 183.8,
+            "wall_seconds": 81.9
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_2",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_2_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_2_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_2",
+          "returncode": 0,
+          "sample": "sample_2",
+          "usage": {
+            "peak_rss_bytes": 104411136,
+            "system_seconds": 46.3,
+            "user_seconds": 186.0,
+            "wall_seconds": 80.0
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_3",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_3_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_3_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_3",
+          "returncode": 0,
+          "sample": "sample_3",
+          "usage": {
+            "peak_rss_bytes": 102682624,
+            "system_seconds": 66.1,
+            "user_seconds": 207.6,
+            "wall_seconds": 90.1
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_4",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_4_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_4_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_4",
+          "returncode": 0,
+          "sample": "sample_4",
+          "usage": {
+            "peak_rss_bytes": 102719488,
+            "system_seconds": 57.7,
+            "user_seconds": 197.8,
+            "wall_seconds": 85.3
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_5",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_5_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_5_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_5",
+          "returncode": 0,
+          "sample": "sample_5",
+          "usage": {
+            "peak_rss_bytes": 102735872,
+            "system_seconds": 56.0,
+            "user_seconds": 198.2,
+            "wall_seconds": 84.9
+          }
+        },
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.read_qc",
+            "--skip-bmtagger",
+            "--skip-pre-qc-report",
+            "--skip-post-qc-report",
+            "--trimmer",
+            "trim-galore",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_9",
+            "-t",
+            "96",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_9_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/reads/sample_9_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/trimmer/trim_galore/sample_9",
+          "returncode": 0,
+          "sample": "sample_9",
+          "usage": {
+            "peak_rss_bytes": 104284160,
+            "system_seconds": 58.4,
+            "user_seconds": 191.0,
+            "wall_seconds": 84.9
+          }
+        }
+      ]
+    }
+  }
+}

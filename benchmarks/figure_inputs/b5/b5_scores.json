@@ -1,0 +1,268 @@
+{
+  "arms": {
+    "a_coassembly": {
+      "arm": "a_coassembly",
+      "bins_high_quality": 40,
+      "bins_medium_quality": 43,
+      "bins_near_complete": 18,
+      "bins_total": 43,
+      "catalogue": "/local/home/guritski/metawrap_work/bench_work/b5/a_coassembly/MAG_CATALOGUE/dereplicated_genomes",
+      "checkm2_cpu_hours": 0.6548,
+      "checkm2_stats": "/local/home/guritski/metawrap_work/bench_work/b5/a_coassembly/MAG_CATALOGUE/dereplicated_genomes.stats.tsv",
+      "checkm2_wall_seconds": 111.3,
+      "coverage_cpu_hours": null,
+      "genomes": 43,
+      "gunc_cpu_hours": 0.0,
+      "gunc_pass_fraction": 0.813953488372093,
+      "gunc_wall_seconds": 0.0,
+      "near_complete_per_cpu_hour": 0.2114,
+      "run_cpu_hours": 85.14,
+      "run_peak_rss_bytes": null,
+      "run_wall_seconds": 5360.0,
+      "steps": {
+        "assembly": {
+          "cpu_hours": 79.1377,
+          "peak_rss_bytes": 14523428864,
+          "wall_seconds": 3833.0
+        },
+        "bin_refinement": {
+          "cpu_hours": 4.0913,
+          "peak_rss_bytes": 11215847424,
+          "wall_seconds": 481.5
+        },
+        "binning": {
+          "cpu_hours": 1.9065,
+          "peak_rss_bytes": 7211053056,
+          "wall_seconds": 1040.0
+        }
+      }
+    },
+    "b_single_sample": {
+      "arm": "b_single_sample",
+      "bins_high_quality": 32,
+      "bins_medium_quality": 40,
+      "bins_near_complete": 19,
+      "bins_total": 40,
+      "catalogue": "/local/home/guritski/metawrap_work/bench_work/b5/b_single_sample/MAG_CATALOGUE/dereplicated_genomes",
+      "checkm2_cpu_hours": 0.5855,
+      "checkm2_stats": "/local/home/guritski/metawrap_work/bench_work/b5/b_single_sample/MAG_CATALOGUE/dereplicated_genomes.stats.tsv",
+      "checkm2_wall_seconds": 103.2,
+      "coverage_cpu_hours": null,
+      "genomes": 40,
+      "gunc_cpu_hours": 0.0,
+      "gunc_pass_fraction": 0.875,
+      "gunc_wall_seconds": 0.0,
+      "near_complete_per_cpu_hour": 0.2134,
+      "run_cpu_hours": 89.05133333333333,
+      "run_peak_rss_bytes": 12525719552,
+      "run_wall_seconds": 6116.5,
+      "steps": {
+        "assembly:sample_0": {
+          "cpu_hours": 25.367,
+          "peak_rss_bytes": 4955643904,
+          "wall_seconds": 1277.5
+        },
+        "assembly:sample_1": {
+          "cpu_hours": 29.1432,
+          "peak_rss_bytes": 5199884288,
+          "wall_seconds": 1450.2
+        },
+        "assembly:sample_10": {
+          "cpu_hours": 25.0204,
+          "peak_rss_bytes": 4785799168,
+          "wall_seconds": 1268.8
+        },
+        "bin_refinement:sample_0": {
+          "cpu_hours": 2.2017,
+          "peak_rss_bytes": 12525719552,
+          "wall_seconds": 329.0
+        },
+        "bin_refinement:sample_1": {
+          "cpu_hours": 2.4755,
+          "peak_rss_bytes": 12271992832,
+          "wall_seconds": 368.2
+        },
+        "bin_refinement:sample_10": {
+          "cpu_hours": 3.0262,
+          "peak_rss_bytes": 12340252672,
+          "wall_seconds": 399.2
+        },
+        "binning:sample_0": {
+          "cpu_hours": 0.5456,
+          "peak_rss_bytes": 7068266496,
+          "wall_seconds": 253.2
+        },
+        "binning:sample_1": {
+          "cpu_hours": 0.6186,
+          "peak_rss_bytes": 7173582848,
+          "wall_seconds": 373.5
+        },
+        "binning:sample_10": {
+          "cpu_hours": 0.6501,
+          "peak_rss_bytes": 7161712640,
+          "wall_seconds": 394.3
+        },
+        "dereplicate": {
+          "cpu_hours": 0.0013,
+          "peak_rss_bytes": 127168512,
+          "wall_seconds": 2.0
+        }
+      }
+    },
+    "c_multi_sample": {
+      "arm": "c_multi_sample",
+      "bins_high_quality": 37,
+      "bins_medium_quality": 46,
+      "bins_near_complete": 23,
+      "bins_total": 46,
+      "catalogue": "/local/home/guritski/metawrap_work/bench_work/b5/c_multi_sample/MAG_CATALOGUE/dereplicated_genomes",
+      "checkm2_cpu_hours": 0.6472,
+      "checkm2_stats": "/local/home/guritski/metawrap_work/bench_work/b5/c_multi_sample/MAG_CATALOGUE/dereplicated_genomes.stats.tsv",
+      "checkm2_wall_seconds": 108.9,
+      "coverage_cpu_hours": 2.2621,
+      "genomes": 46,
+      "gunc_cpu_hours": 0.0,
+      "gunc_pass_fraction": 0.8695652173913043,
+      "gunc_wall_seconds": 0.0,
+      "near_complete_per_cpu_hour": 0.2529,
+      "run_cpu_hours": 90.94399999999999,
+      "run_peak_rss_bytes": 13152215040,
+      "run_wall_seconds": 6293.1,
+      "steps": {
+        "assembly:sample_0": {
+          "cpu_hours": 25.623,
+          "peak_rss_bytes": 4960395264,
+          "wall_seconds": 1244.0
+        },
+        "assembly:sample_1": {
+          "cpu_hours": 28.4896,
+          "peak_rss_bytes": 5201481728,
+          "wall_seconds": 1382.7
+        },
+        "assembly:sample_10": {
+          "cpu_hours": 25.8573,
+          "peak_rss_bytes": 4795174912,
+          "wall_seconds": 1251.4
+        },
+        "bin_refinement:sample_0": {
+          "cpu_hours": 2.2265,
+          "peak_rss_bytes": 12827697152,
+          "wall_seconds": 334.0
+        },
+        "bin_refinement:sample_1": {
+          "cpu_hours": 2.7546,
+          "peak_rss_bytes": 13152215040,
+          "wall_seconds": 400.7
+        },
+        "bin_refinement:sample_10": {
+          "cpu_hours": 3.0944,
+          "peak_rss_bytes": 12969607168,
+          "wall_seconds": 413.8
+        },
+        "binning:sample_0": {
+          "cpu_hours": 0.1287,
+          "peak_rss_bytes": 4868108288,
+          "wall_seconds": 116.8
+        },
+        "binning:sample_1": {
+          "cpu_hours": 0.2306,
+          "peak_rss_bytes": 5218926592,
+          "wall_seconds": 211.8
+        },
+        "binning:sample_10": {
+          "cpu_hours": 0.2737,
+          "peak_rss_bytes": 5606178816,
+          "wall_seconds": 253.9
+        },
+        "coverage": {
+          "cpu_hours": 2.2621,
+          "peak_rss_bytes": 7237505024,
+          "wall_seconds": 681.5
+        },
+        "dereplicate": {
+          "cpu_hours": 0.0019,
+          "peak_rss_bytes": 170074112,
+          "wall_seconds": 2.0
+        }
+      }
+    },
+    "d_multi_sample_fairy": {
+      "arm": "d_multi_sample_fairy",
+      "bins_high_quality": 27,
+      "bins_medium_quality": 38,
+      "bins_near_complete": 12,
+      "bins_total": 38,
+      "catalogue": "/local/home/guritski/metawrap_work/bench_work/b5/d_multi_sample_fairy/MAG_CATALOGUE/dereplicated_genomes",
+      "checkm2_cpu_hours": 0.5434,
+      "checkm2_stats": "/local/home/guritski/metawrap_work/bench_work/b5/d_multi_sample_fairy/MAG_CATALOGUE/dereplicated_genomes.stats.tsv",
+      "checkm2_wall_seconds": 100.5,
+      "coverage_cpu_hours": 0.0429,
+      "genomes": 38,
+      "gunc_cpu_hours": 0.0,
+      "gunc_pass_fraction": 0.7631578947368421,
+      "gunc_wall_seconds": 0.0,
+      "near_complete_per_cpu_hour": 0.1391,
+      "run_cpu_hours": 86.25541666666666,
+      "run_peak_rss_bytes": 13111353344,
+      "run_wall_seconds": 5557.7,
+      "steps": {
+        "assembly:sample_0": {
+          "cpu_hours": 25.6288,
+          "peak_rss_bytes": 4957204480,
+          "wall_seconds": 1242.4
+        },
+        "assembly:sample_1": {
+          "cpu_hours": 27.9056,
+          "peak_rss_bytes": 5199929344,
+          "wall_seconds": 1374.7
+        },
+        "assembly:sample_10": {
+          "cpu_hours": 24.8795,
+          "peak_rss_bytes": 4790521856,
+          "wall_seconds": 1217.4
+        },
+        "bin_refinement:sample_0": {
+          "cpu_hours": 2.0356,
+          "peak_rss_bytes": 11441704960,
+          "wall_seconds": 321.5
+        },
+        "bin_refinement:sample_1": {
+          "cpu_hours": 2.5397,
+          "peak_rss_bytes": 13111353344,
+          "wall_seconds": 372.6
+        },
+        "bin_refinement:sample_10": {
+          "cpu_hours": 2.597,
+          "peak_rss_bytes": 10813079552,
+          "wall_seconds": 361.8
+        },
+        "binning:sample_0": {
+          "cpu_hours": 0.1274,
+          "peak_rss_bytes": 4980150272,
+          "wall_seconds": 115.7
+        },
+        "binning:sample_1": {
+          "cpu_hours": 0.2342,
+          "peak_rss_bytes": 5206220800,
+          "wall_seconds": 233.1
+        },
+        "binning:sample_10": {
+          "cpu_hours": 0.2619,
+          "peak_rss_bytes": 5364830208,
+          "wall_seconds": 240.1
+        },
+        "coverage": {
+          "cpu_hours": 0.0429,
+          "peak_rss_bytes": 5453877248,
+          "wall_seconds": 75.9
+        },
+        "dereplicate": {
+          "cpu_hours": 0.0008,
+          "peak_rss_bytes": 101212160,
+          "wall_seconds": 1.9
+        }
+      }
+    }
+  },
+  "scored_at": "2026-10-06T09:20:11"
+}

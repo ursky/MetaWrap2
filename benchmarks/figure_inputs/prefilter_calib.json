@@ -1,0 +1,25 @@
+{
+  "bins_passing_70_10": 10738,
+  "bins_scored": 18490,
+  "bins_skipped": 251,
+  "bins_skipped_pct": 1.357490535424554,
+  "bounds": {
+    "max_bp": 20000000,
+    "min_bp": 200000
+  },
+  "by_reason": {
+    "oversized": {
+      "bins": 60,
+      "bp": 3616400553
+    },
+    "undersized": {
+      "bins": 191,
+      "bp": 25436771
+    }
+  },
+  "largest_passing_bp": 6662651,
+  "passing_bins_lost": 0,
+  "sequence_skipped_pct": 5.509801191094294,
+  "smallest_passing_bp": 990084,
+  "worst_passing_n50": 2025
+}

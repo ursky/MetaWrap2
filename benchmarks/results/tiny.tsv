@@ -1,0 +1,19 @@
+dataset	comparison	variant	sample	metric	value	unit	source
+tiny	binner_set	metabat2		wall_seconds	4.9	s	usage.run_measured
+tiny	binner_set	metabat2		cpu_hours	0.00361111	cpu_h	usage.run_measured
+tiny	binner_set	metabat2		peak_rss_bytes	1.0276e+08	B	usage.run_measured
+tiny	binner_set	concoct		wall_seconds	11.9	s	usage.run_measured
+tiny	binner_set	concoct		cpu_hours	0.0308056	cpu_h	usage.run_measured
+tiny	binner_set	concoct		peak_rss_bytes	1.72118e+08	B	usage.run_measured
+tiny	binner_set	metabat2_concoct		wall_seconds	11.7	s	usage.run_measured
+tiny	binner_set	metabat2_concoct		cpu_hours	0.0337222	cpu_h	usage.run_measured
+tiny	binner_set	metabat2_concoct		peak_rss_bytes	1.73789e+08	B	usage.run_measured
+tiny	binner_set	metabat2		wall_seconds	3.7	s	usage.run_measured
+tiny	binner_set	metabat2		cpu_hours	0.00338889	cpu_h	usage.run_measured
+tiny	binner_set	metabat2		peak_rss_bytes	1.02699e+08	B	usage.run_measured
+tiny	binner_set	concoct		wall_seconds	7.2	s	usage.run_measured
+tiny	binner_set	concoct		cpu_hours	0.0173333	cpu_h	usage.run_measured
+tiny	binner_set	concoct		peak_rss_bytes	1.6425e+08	B	usage.run_measured
+tiny	binner_set	metabat2_concoct		wall_seconds	8.7	s	usage.run_measured
+tiny	binner_set	metabat2_concoct		cpu_hours	0.0200278	cpu_h	usage.run_measured
+tiny	binner_set	metabat2_concoct		peak_rss_bytes	1.65765e+08	B	usage.run_measured

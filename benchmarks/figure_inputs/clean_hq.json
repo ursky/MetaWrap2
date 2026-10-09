@@ -1,0 +1,100 @@
+{
+  "comebin_gpu": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.9887640449438202,
+    "clean_hq": 176,
+    "hq": 178,
+    "hq_with_a_gunc_verdict": 178
+  },
+  "concoct": {
+    "bin_set": "concoct_bins",
+    "clean_fraction_of_hq": 0.8235294117647058,
+    "clean_hq": 28,
+    "hq": 34,
+    "hq_with_a_gunc_verdict": 34
+  },
+  "maxbin2": {
+    "bin_set": "maxbin2_bins",
+    "clean_fraction_of_hq": 0.717391304347826,
+    "clean_hq": 33,
+    "hq": 46,
+    "hq_with_a_gunc_verdict": 46
+  },
+  "metabat2": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.9459459459459459,
+    "clean_hq": 35,
+    "hq": 37,
+    "hq_with_a_gunc_verdict": 37
+  },
+  "metabat2_concoct": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.9473684210526315,
+    "clean_hq": 54,
+    "hq": 57,
+    "hq_with_a_gunc_verdict": 57
+  },
+  "metabat2_maxbin2": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.8309859154929577,
+    "clean_hq": 59,
+    "hq": 71,
+    "hq_with_a_gunc_verdict": 71
+  },
+  "metabat2_maxbin2_concoct": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.8690476190476191,
+    "clean_hq": 73,
+    "hq": 84,
+    "hq_with_a_gunc_verdict": 84
+  },
+  "metabat2_semibin2": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.8702290076335878,
+    "clean_hq": 114,
+    "hq": 131,
+    "hq_with_a_gunc_verdict": 131
+  },
+  "metabat2_semibin2_comebin_gpu": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.9672131147540983,
+    "clean_hq": 177,
+    "hq": 183,
+    "hq_with_a_gunc_verdict": 183
+  },
+  "metabat2_vamb": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.9120879120879121,
+    "clean_hq": 83,
+    "hq": 91,
+    "hq_with_a_gunc_verdict": 91
+  },
+  "semibin2": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.8604651162790697,
+    "clean_hq": 111,
+    "hq": 129,
+    "hq_with_a_gunc_verdict": 129
+  },
+  "semibin2_gpu": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.8467153284671532,
+    "clean_hq": 116,
+    "hq": 137,
+    "hq_with_a_gunc_verdict": 137
+  },
+  "vamb": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.9047619047619048,
+    "clean_hq": 76,
+    "hq": 84,
+    "hq_with_a_gunc_verdict": 84
+  },
+  "vamb_gpu": {
+    "bin_set": "metawrap_70_10_bins",
+    "clean_fraction_of_hq": 0.9302325581395349,
+    "clean_hq": 80,
+    "hq": 86,
+    "hq_with_a_gunc_verdict": 86
+  }
+}

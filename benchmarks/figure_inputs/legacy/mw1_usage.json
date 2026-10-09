@@ -1,0 +1,109 @@
+{
+  "assembly:sample_0": {
+    "cpu_hours": 24.6259,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/assembly_sample_0.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 4906881024,
+      "system_seconds": 546.8,
+      "user_seconds": 88106.5,
+      "wall_seconds": 1211.7
+    }
+  },
+  "assembly:sample_1": {
+    "cpu_hours": 29.3901,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/assembly_sample_1.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 5157134336,
+      "system_seconds": 605.6,
+      "user_seconds": 105198.9,
+      "wall_seconds": 1426.0
+    }
+  },
+  "assembly:sample_10": {
+    "cpu_hours": 25.4973,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/assembly_sample_10.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 4765319168,
+      "system_seconds": 1063.7,
+      "user_seconds": 90726.6,
+      "wall_seconds": 1240.3
+    }
+  },
+  "bin_refinement:sample_0": {
+    "cpu_hours": 4.2074,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/bin_refinement_sample_0.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 36934000640,
+      "system_seconds": 1193.0,
+      "user_seconds": 13953.8,
+      "wall_seconds": 2919.6
+    }
+  },
+  "bin_refinement:sample_1": {
+    "cpu_hours": 4.3095,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/bin_refinement_sample_1.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 36797247488,
+      "system_seconds": 1158.6,
+      "user_seconds": 14355.5,
+      "wall_seconds": 3027.6
+    }
+  },
+  "bin_refinement:sample_10": {
+    "cpu_hours": 5.5634,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/bin_refinement_sample_10.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 36940378112,
+      "system_seconds": 1383.5,
+      "user_seconds": 18644.7,
+      "wall_seconds": 3102.7
+    }
+  },
+  "binning:sample_0": {
+    "cpu_hours": 5.607,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/binning_sample_0.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 12523302912,
+      "system_seconds": 9049.0,
+      "user_seconds": 11136.2,
+      "wall_seconds": 676.1
+    }
+  },
+  "binning:sample_1": {
+    "cpu_hours": 22.0947,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/binning_sample_1.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 12511551488,
+      "system_seconds": 57559.0,
+      "user_seconds": 21982.0,
+      "wall_seconds": 1258.6
+    }
+  },
+  "binning:sample_10": {
+    "cpu_hours": 10.7206,
+    "log": "/local/home/guritski/metawrap_work/bench_work/legacy/mw1/binning_sample_10.log",
+    "returncode": 0,
+    "usage": {
+      "peak_rss_bytes": 12579323904,
+      "system_seconds": 19719.0,
+      "user_seconds": 18875.0,
+      "wall_seconds": 1109.7
+    }
+  },
+  "started_at": "2026-10-05T19:04:49",
+  "total_cpu_hours": 132.0159,
+  "totals_by_step": {
+    "assembly": 79.5133,
+    "bin_refinement": 14.0803,
+    "binning": 38.4223
+  },
+  "version": "1.3.0"
+}

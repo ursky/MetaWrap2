@@ -1,0 +1,50 @@
+{
+  "agreement": {
+    "both": 2863688,
+    "jaccard": 0.695496,
+    "only_bwa": 3992,
+    "only_minimap2": 1249798
+  },
+  "bwa": {
+    "fastq_bytes": 1598899171,
+    "index": {
+      "cpu_hours": 0.03247,
+      "peak_rss_bytes": 265768960,
+      "returncode": 0,
+      "system_seconds": 0.6,
+      "user_seconds": 116.3,
+      "wall_seconds": 117.2
+    },
+    "index_bytes": 308937545,
+    "map": {
+      "cpu_hours": 5.41264,
+      "peak_rss_bytes": 4779167744,
+      "returncode": 0,
+      "system_seconds": 125.0,
+      "user_seconds": 19360.5,
+      "wall_seconds": 411.4
+    },
+    "total_cpu_hours": 5.44511
+  },
+  "minimap2": {
+    "fastq_bytes": 2213893046,
+    "index": {
+      "cpu_hours": 0.00194,
+      "peak_rss_bytes": 1453670400,
+      "returncode": 0,
+      "system_seconds": 1.9,
+      "user_seconds": 5.1,
+      "wall_seconds": 4.7
+    },
+    "index_bytes": 554815188,
+    "map": {
+      "cpu_hours": 0.61567,
+      "peak_rss_bytes": 1781616640,
+      "returncode": 0,
+      "system_seconds": 101.8,
+      "user_seconds": 2114.6,
+      "wall_seconds": 142.9
+    },
+    "total_cpu_hours": 0.61761
+  }
+}

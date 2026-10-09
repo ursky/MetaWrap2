@@ -1,0 +1,42 @@
+{
+  "dataset": "CAMI2 Toy HMP GI, 3 samples, pooled gold assembly, 210632 contigs",
+  "flag": "--noIntraDepthVariance",
+  "probe_60_contigs_2_samples": {
+    "contigs_zeroed": "59 of 60",
+    "identical_rerun_reported": 7874,
+    "nonzero_contig_reported": 7867,
+    "note": "differs between identical runs, so the value comes from uninitialized memory",
+    "true_per_sample_depths": [
+      0.266899,
+      0.452825
+    ]
+  },
+  "samples": {
+    "sample_0": {
+      "contigs_with_coverage": 50272,
+      "invented_coverage_on_uncovered_contigs": 0,
+      "max_reported_over_true": 1.0,
+      "mean_reported_over_true": 0.82,
+      "median_reported_over_true": 0.8459,
+      "reported_as_zero": 10841
+    },
+    "sample_1": {
+      "contigs_with_coverage": 65375,
+      "invented_coverage_on_uncovered_contigs": 24134,
+      "max_reported_over_true": 410067315.96,
+      "mean_reported_over_true": 62154.52,
+      "median_reported_over_true": 0.9254,
+      "reported_as_zero": 37453
+    },
+    "sample_10": {
+      "contigs_with_coverage": 56369,
+      "invented_coverage_on_uncovered_contigs": 25187,
+      "max_reported_over_true": 1523050974.51,
+      "mean_reported_over_true": 98304.33,
+      "median_reported_over_true": 0.9345,
+      "reported_as_zero": 32557
+    }
+  },
+  "tool": "jgi_summarize_bam_contig_depths 2.18 20260506_185317",
+  "truth_source": "same BAMs, same tool, without the flag"
+}

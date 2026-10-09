@@ -1,0 +1,29 @@
+{
+  "arms": {
+    "legacy": {
+      "arm": "legacy",
+      "cpu_hours": 233.68516666666665,
+      "returncode": 0,
+      "steps": {},
+      "usage": {
+        "peak_rss_bytes": 36718510080,
+        "system_seconds": 463742.6,
+        "user_seconds": 377524.0,
+        "wall_seconds": 18273.5
+      }
+    },
+    "modern": {
+      "arm": "modern",
+      "cpu_hours": 97.05377777777778,
+      "returncode": 0,
+      "steps": {},
+      "usage": {
+        "peak_rss_bytes": 36691922944,
+        "system_seconds": 6872.4,
+        "user_seconds": 342521.2,
+        "wall_seconds": 9032.0
+      }
+    }
+  },
+  "started_at": "2026-10-03T06:09:35"
+}

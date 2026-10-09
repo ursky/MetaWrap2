@@ -1,0 +1,36 @@
+{
+  "amber_usage": {
+    "cpu_hours": 0.00701,
+    "peak_rss_bytes": 452313088,
+    "returncode": 0,
+    "system_seconds": 1.048883,
+    "user_seconds": 24.200839,
+    "wall_seconds": 12.877068519592285
+  },
+  "metrics": {
+    "metabat2_concoct": {
+      "amber_accuracy_bp": 0.2531738722847742,
+      "amber_ari_bp": 0.9925173502374594,
+      "amber_assigned_bp_fraction": 0.2546521064658162,
+      "amber_completeness_bp": 0.22071329889458946,
+      "amber_f1_bp": 0.36121873070685245,
+      "amber_purity_bp": 0.9939894997456307
+    },
+    "metabat2_maxbin2": {
+      "amber_accuracy_bp": 0.28910280269951494,
+      "amber_ari_bp": 0.9829805121532095,
+      "amber_assigned_bp_fraction": 0.2939264286976705,
+      "amber_completeness_bp": 0.2751383726142239,
+      "amber_f1_bp": 0.4297645992044049,
+      "amber_purity_bp": 0.9811851861696457
+    },
+    "metabat2_maxbin2_concoct": {
+      "amber_accuracy_bp": 0.35105575163200764,
+      "amber_ari_bp": 0.9867781584620864,
+      "amber_assigned_bp_fraction": 0.35525966516252905,
+      "amber_completeness_bp": 0.32081194353316916,
+      "amber_f1_bp": 0.48408446740315353,
+      "amber_purity_bp": 0.9857855205627416
+    }
+  }
+}

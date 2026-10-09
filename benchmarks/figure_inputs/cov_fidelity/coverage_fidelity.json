@@ -1,0 +1,51 @@
+{
+  "assembly": "legacy/legacy/ASSEMBLY/sample_0/final_assembly.fasta",
+  "contigs": 19054,
+  "fairy_total_avg_depth_over_sum_of_samples": 1.0,
+  "methods": {
+    "coverm": {
+      "contigs_compared": 19054,
+      "cpu_hours": 0.3049,
+      "gold_positive_other_zero_pct": 0.0,
+      "median_ratio": 2.0012,
+      "other_positive_gold_zero_pct": 0.0,
+      "pearson": 0.9947,
+      "pearson_log": 0.9836,
+      "pearson_vs_depth_times_length": 0.4662,
+      "spearman": 0.9519
+    },
+    "fairy": {
+      "contigs_compared": 19018,
+      "cpu_hours": 0.0,
+      "gold_positive_other_zero_pct": 0.19,
+      "median_ratio": 0.7401,
+      "other_positive_gold_zero_pct": 0.0,
+      "pearson": 0.946,
+      "pearson_log": 0.9534,
+      "pearson_vs_depth_times_length": 0.3855,
+      "spearman": 0.8919
+    },
+    "minimap2": {
+      "contigs_compared": 19054,
+      "cpu_hours": 0.0,
+      "gold_positive_other_zero_pct": 0.0,
+      "median_ratio": 1.0,
+      "other_positive_gold_zero_pct": 0.0,
+      "pearson": 0.9999,
+      "pearson_log": 0.9998,
+      "pearson_vs_depth_times_length": 0.4822,
+      "spearman": 0.9993
+    },
+    "salmon": {
+      "contigs_compared": 19054,
+      "cpu_hours": 0.227,
+      "gold_positive_other_zero_pct": 0.0,
+      "median_ratio": 1.9442,
+      "other_positive_gold_zero_pct": 0.0,
+      "pearson": 0.9948,
+      "pearson_log": 0.9841,
+      "pearson_vs_depth_times_length": 0.4833,
+      "spearman": 0.9505
+    }
+  }
+}

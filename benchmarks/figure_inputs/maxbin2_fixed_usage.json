@@ -1,0 +1,36 @@
+{
+  "arms": {
+    "metabat2_maxbin2": {
+      "after": {
+        "binned_bp": 349775334,
+        "bins": 129
+      },
+      "before": {
+        "binned_bp": 383983443,
+        "bins": 188
+      }
+    },
+    "metabat2_maxbin2_concoct": {
+      "after": {
+        "binned_bp": 349775334,
+        "bins": 129
+      },
+      "before": {
+        "binned_bp": 378321373,
+        "bins": 185
+      }
+    }
+  },
+  "fixed": {
+    "binned_bp": 349775334,
+    "bins": 129
+  },
+  "usage": {
+    "cpu_hours": 6.02819,
+    "peak_rss_bytes": 15467397120,
+    "returncode": 0,
+    "system_seconds": 2264.0,
+    "user_seconds": 19437.5,
+    "wall_seconds": 2791.4
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "budget": {
+    "disk_check_interval": 60,
+    "disk_fraction": 0.7,
+    "gpus": 8,
+    "machine_cores": 192,
+    "machine_gpus": 8,
+    "machine_memory_bytes": 781912821760,
+    "memory_bytes": 625530257408,
+    "threads": 96
+  },
+  "comparison": "assembler",
+  "dataset": "cami2_gi",
+  "samples": [
+    "sample_0",
+    "sample_1",
+    "sample_10"
+  ],
+  "started_at": "2026-09-30T02:44:18",
+  "variants": {
+    "megahit": {
+      "returncode": 0,
+      "runs": [
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.assembly",
+            "--megahit",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/assembler/megahit",
+            "-t",
+            "96",
+            "-m",
+            "582",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/coassembly_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/coassembly_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/assembler/megahit",
+          "returncode": 0,
+          "sample": "",
+          "usage": {
+            "peak_rss_bytes": 14523449344,
+            "system_seconds": 5853.9,
+            "user_seconds": 272490.0,
+            "wall_seconds": 3743.2
+          }
+        }
+      ]
+    },
+    "metaspades": {
+      "returncode": 0,
+      "runs": [
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python",
+            "-m",
+            "metawrap2.modules.assembly",
+            "--metaspades",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/assembler/metaspades",
+            "-t",
+            "96",
+            "-m",
+            "582",
+            "-1",
+            "/local/home/guritski/metawrap_work/bench_work/coassembly_1.fastq",
+            "-2",
+            "/local/home/guritski/metawrap_work/bench_work/coassembly_2.fastq"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/assembler/metaspades",
+          "returncode": 0,
+          "sample": "",
+          "usage": {
+            "peak_rss_bytes": 140133986304,
+            "system_seconds": 11880.2,
+            "user_seconds": 868515.2,
+            "wall_seconds": 14247.7
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "metabat2_concoct": {
+    "cpu_hours": 10.01617,
+    "peak_rss_bytes": 36781666304,
+    "refined_bins": 60,
+    "returncode": 0,
+    "system_seconds": 1274.1,
+    "user_seconds": 34784.1,
+    "wall_seconds": 2170.4
+  },
+  "metabat2_maxbin2": {
+    "cpu_hours": 11.05094,
+    "peak_rss_bytes": 36841119744,
+    "refined_bins": 74,
+    "returncode": 0,
+    "system_seconds": 1440.5,
+    "user_seconds": 38342.9,
+    "wall_seconds": 2313.8
+  },
+  "metabat2_maxbin2_concoct": {
+    "cpu_hours": 18.83378,
+    "peak_rss_bytes": 36838010880,
+    "refined_bins": 87,
+    "returncode": 0,
+    "system_seconds": 2782.5,
+    "user_seconds": 65019.1,
+    "wall_seconds": 4392.6
+  }
+}

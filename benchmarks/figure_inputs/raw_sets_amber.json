@@ -1,0 +1,26 @@
+{
+  "concoct": {
+    "amber_accuracy_bp": 0.3551877080505106,
+    "amber_ari_bp": 0.179428448853653,
+    "amber_assigned_bp_fraction": 0.9328298711778064,
+    "amber_completeness_bp": 0.8249821999085027,
+    "amber_f1_bp": 0.720208992928943,
+    "amber_purity_bp": 0.6390493617768662
+  },
+  "maxbin2": {
+    "amber_accuracy_bp": 0.33376805225547673,
+    "amber_ari_bp": 0.8747158655128073,
+    "amber_assigned_bp_fraction": 0.3747368067705407,
+    "amber_completeness_bp": 0.32231845078920235,
+    "amber_f1_bp": 0.4597748460828993,
+    "amber_purity_bp": 0.8016459392062055
+  },
+  "metabat2": {
+    "amber_accuracy_bp": 0.284533232532523,
+    "amber_ari_bp": 0.1311727687346006,
+    "amber_assigned_bp_fraction": 0.605772835271411,
+    "amber_completeness_bp": 0.5234829410618926,
+    "amber_f1_bp": 0.6456441540400679,
+    "amber_purity_bp": 0.8421764309900699
+  }
+}

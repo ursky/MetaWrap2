@@ -1,0 +1,61 @@
+{
+  "assembly": "/local/home/guritski/metawrap_work/MetaWrap2/benchmarks/data/cami2_gi/gold/gsa.fa",
+  "bins_from": "/local/home/guritski/metawrap_work/bench_work/binner_set/metabat2_maxbin2",
+  "budget": {
+    "disk_check_interval": 60,
+    "disk_fraction": 0.7,
+    "gpus": 8,
+    "machine_cores": 192,
+    "machine_gpus": 8,
+    "machine_memory_bytes": 781912846336,
+    "memory_bytes": 625530277068,
+    "threads": 96
+  },
+  "comparison": "consolidator",
+  "data_dir": "/local/home/guritski/metawrap_work/MetaWrap2/benchmarks/data/cami2_gi",
+  "dataset": "cami2_gi",
+  "samples": [
+    "sample_0",
+    "sample_1",
+    "sample_10"
+  ],
+  "started_at": "2026-10-06T01:42:34",
+  "variants": {
+    "dastool": {
+      "returncode": 1,
+      "runs": [
+        {
+          "command": [
+            "/local/home/guritski/metawrap_work/MetaWrap2/.venv/bin/python3.12",
+            "-m",
+            "metawrap2.cli",
+            "bin_refinement",
+            "--consolidator",
+            "dastool",
+            "-o",
+            "/local/home/guritski/metawrap_work/bench_work/consolidator/dastool",
+            "-t",
+            "96",
+            "-m",
+            "582",
+            "-A",
+            "/local/home/guritski/metawrap_work/bench_work/binner_set/metabat2_maxbin2/maxbin2_bins",
+            "-B",
+            "/local/home/guritski/metawrap_work/bench_work/binner_set/metabat2_maxbin2/metabat2_bins",
+            "-a",
+            "benchmarks/data/cami2_gi/gold/gsa.fa"
+          ],
+          "output": "/local/home/guritski/metawrap_work/bench_work/consolidator/dastool",
+          "returncode": 1,
+          "sample": "",
+          "usage": {
+            "peak_rss_bytes": 1066569728,
+            "system_seconds": 17.0,
+            "user_seconds": 3091.5,
+            "wall_seconds": 159.5
+          }
+        }
+      ]
+    }
+  }
+}
