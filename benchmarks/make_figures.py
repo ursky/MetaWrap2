@@ -243,6 +243,7 @@ def fig_mw1(agg) -> None:
     scores = read_json("legacy", "legacy_scores.json")
     counts = read_json("preset_e2e", "counts.json")
     costs = read_json("preset_e2e", "costs.json")
+    gpu_hours = read_json("preset_e2e", "gpu_hours.json") or {}
     if not (scores and counts and costs):
         print("skipping mw1: need legacy scores and the end-to-end preset arms")
         return
@@ -253,6 +254,15 @@ def fig_mw1(agg) -> None:
 
     def tier(name):
         return costs[name]["binning"] + costs[name]["bin_refinement"]
+
+    def gpu(name):
+        """Hours the tier held a GPU, measured rather than written in here as a literal.
+
+        bench_work/preset_gpu_hours.py reads it out of each binning run's log as the wall span of the
+        binners given --device cuda. It is occupancy: a binner at 40% of the device for an hour is
+        charged an hour, because that is what the next job waits.
+        """
+        return gpu_hours.get(name, 0.0)
 
     # (label, HQ, clean, cpu-hours for binning+refinement, GPU-hours, is the baseline)
     rows = [
@@ -285,12 +295,19 @@ def fig_mw1(agg) -> None:
             counts["default"][0],
             counts["default"][1],
             tier("default"),
-            0.77,
+            gpu("default"),
             # Not highlighted: the highlight colour marks the metaWRAP 1 baseline this is measured
             # against, and using it for two different things makes the figure say neither.
             False,
         ),
-        ("--preset slow", counts["slow"][0], counts["slow"][1], tier("slow"), 1.82, False),
+        (
+            "--preset slow",
+            counts["slow"][0],
+            counts["slow"][1],
+            tier("slow"),
+            gpu("slow"),
+            False,
+        ),
     ]
 
     labels = [r[0] for r in rows]
@@ -358,8 +375,8 @@ def fig_mw1(agg) -> None:
         "GPU-fed binner still keeps ~40 host cores busy, so the cpu\nfigure is real, but a reader "
         "without a GPU cannot buy `default` or `slow` at any cpu price. Dashed lines mark metaWRAP 1. "
         "The shipped tier, `default`,\nreturns 10% more clean MAGs for 17% less cpu than metaWRAP 1 "
-        "does; `fast`, which it replaced, gives up 15% of them for 74% less; `slow` returns 19% more "
-        "for 54% more.",
+        "does; `fast`, which it replaced, gives up 15% of them for 74% less; `slow` returns 25% more "
+        "for 130% more.",
     )
 
 
@@ -421,7 +438,7 @@ def fig_mw1_steps() -> None:
 # ── 2. Binners ────────────────────────────────────────────────────────────────────────────────
 
 BINNER_LABELS = [
-    ("metabat2_semibin2_comebin_gpu", "metaBAT2+SemiBin2+COMEBin  GPU"),
+    ("metabat2_semibin2_comebin_gpu", "metaBAT2+SemiBin2+COMEBin  GPU  (slow)"),
     ("comebin_gpu", "COMEBin  GPU"),
     ("semibin2_gpu", "SemiBin2  GPU"),
     ("metabat2_semibin2", "metaBAT2 + SemiBin2  (default)"),
@@ -462,7 +479,8 @@ def fig_binners(agg) -> None:
         "bin_refinement and is a per-bin join of CheckM2 and GUNC, so a chimera never counts. Cost is "
         "log-scaled: the arms span 49x.\nThe shipped default, metaBAT2 + SemiBin2, is fourth of "
         "fourteen on quality, and the three above it all need a GPU to be affordable. COMEBin on a GPU "
-        "recovers\n1.5x its MAGs; adding two more binners to COMEBin adds one.",
+        "recovers\n1.5x its MAGs, and adding metaBAT2 and SemiBin2 to it adds one more here - a tie "
+        "this design cannot break, which the end-to-end arms do.",
     )
 
 
@@ -535,8 +553,8 @@ def fig_presets() -> None:
             41,
             modern["cpu_hours"],
             False,
-            (-12, 10),
-            "right",
+            (12, 2),
+            "left",
         ),
         (
             "default  (shipped)",
@@ -544,10 +562,18 @@ def fig_presets() -> None:
             counts["default"][1],
             costs["default"]["total"],
             True,
-            (-10, -40),
+            (0, 14),
+            "center",
+        ),
+        (
+            "slow",
+            "metaBAT2 + SemiBin2 + COMEBin",
+            counts["slow"][1],
+            costs["slow"]["total"],
+            True,
+            (-14, 8),
             "right",
         ),
-        ("slow", "COMEBin", counts["slow"][1], costs["slow"]["total"], True, (-10, 12), "right"),
     ]
     baseline = 48
 
@@ -594,7 +620,7 @@ def fig_presets() -> None:
         alpha=0.7,
     )
 
-    ax.set_xlim(80, 185)
+    ax.set_xlim(80, 232)
     ax.set_ylim(22, 76)
     ax.set_xlabel("CPU-hours for the whole run")
     ax.set_ylabel("clean high-quality MAGs")
@@ -615,9 +641,9 @@ def fig_presets() -> None:
         "four tiers share one set of assemblies and differ only in\nwhich binners run; assembly is 83 of "
         "every total, which is why they cluster. Dashed lines and the star are metaWRAP 1. Up and to the "
         "left of them is\nstrictly better, and the shipped tier `default` is the only arm there; `slow` "
-        "buys 19% more clean MAGs for 24% more cpu. The tiers are not nested - `slow` is\nCOMEBin alone, "
-        "because adding metaBAT2 and SemiBin2 to it bought one extra clean MAG on the gold assembly for "
-        "33% more binning cpu.",
+        "buys 25% more clean MAGs for 55% more cpu. The tiers are not nested - `fast`\nruns MaxBin2 and "
+        "the two tiers above it do not, because 37.7% of MaxBin2's bins pass GUNC and consolidation has "
+        "to sort out the rest.",
     )
 
 
@@ -1134,10 +1160,88 @@ def fig_cost_landscape(agg) -> None:
     )
 
 
+def fig_headline() -> None:
+    """The README's one comparison: metaWRAP 1 against MetaWrap2's three main presets.
+
+    Same raw reads, per-sample assemblies, and the same CheckM2 + GUNC scoring for every arm. Cost
+    is binning plus refinement, the steps the presets change; assembly costs about 80 CPU-hours in
+    every arm and is left out so that it does not hide the difference. The numbers are the ones in
+    the README table and in fig_mw1, from the same inputs.
+    """
+    scores = read_json("legacy", "legacy_scores.json")
+    counts = read_json("preset_e2e", "counts.json")
+    costs = read_json("preset_e2e", "costs.json")
+    gpu_hours = read_json("preset_e2e", "gpu_hours.json") or {}
+    if not (scores and counts and costs):
+        print("skipping headline: need legacy scores and the end-to-end preset arms")
+        return
+    arms = scores["arms"]
+
+    def own(by):
+        return by.get("binning", 0.0) + by.get("bin_refinement", 0.0)
+
+    def tier(name):
+        return costs[name]["binning"] + costs[name]["bin_refinement"]
+
+    # (label, clean MAGs, CPU-hours, GPU-hours)
+    mw1 = ("metaWRAP 1.3.0", 48, own(arms["mw1"]["by_step"]), 0.0)
+    rows = [
+        mw1,
+        ("MetaWrap2\n--preset fast", 41, own(arms["modern"]["by_step"]), 0.0),
+        ("MetaWrap2\ndefault", counts["default"][1], tier("default"), gpu_hours.get("default", 0)),
+        ("MetaWrap2\n--preset slow", counts["slow"][1], tier("slow"), gpu_hours.get("slow", 0)),
+    ]
+    labels = [r[0] for r in rows]
+    # One colour for MetaWrap2 and one for the baseline: the presets differ in their numbers, which
+    # the bars already show, so a shade per preset would encode nothing.
+    colors = [MUTED] + [ACCENT] * (len(rows) - 1)
+    fig, (left, right) = plt.subplots(1, 2, figsize=(9.6, 3.6))
+    y = list(range(len(rows)))[::-1]
+
+    def change(value, base):
+        pct = round(100.0 * (value - base) / base)
+        return "%+d%%" % pct if pct else "same"
+
+    for ax, index, title, fmt in (
+        (left, 1, "Clean high-quality MAGs", "%d"),
+        (right, 2, "CPU-hours, binning + refinement", "%.1f"),
+    ):
+        values = [r[index] for r in rows]
+        ax.barh(y, values, color=colors, height=0.62, linewidth=0)
+        ax.set_yticks(y)
+        ax.set_yticklabels(labels if ax is left else [""] * len(rows))
+        ax.set_title(title, loc="left", fontsize=10.5, color=INK)
+        ax.grid(axis="x", linewidth=0.6, alpha=0.9)
+        ax.set_axisbelow(True)
+        span = max(values)
+        ax.set_xlim(0, span * 1.42)
+        ax.axvline(values[0], color=INK_SOFT, linestyle=(0, (4, 3)), linewidth=0.9)
+        for yy, row, value in zip(y, rows, values):
+            text = fmt % value
+            if row is not mw1:
+                text += "   " + change(value, values[0])
+            if ax is right and row[3]:
+                text += "\n+ %.1f GPU-h" % row[3]
+            # Clear of the baseline's dashed line as well as of the bar, so the line never runs
+            # through a label.
+            x = max(value, values[0]) + span * 0.025
+            ax.text(x, yy, text, va="center", ha="left", fontsize=8.5, color=INK)
+    save(
+        fig,
+        "headline_mw1_vs_mw2.png",
+        note="CAMI2 gastrointestinal, three samples, each assembled separately. Every arm is scored by "
+        "the same CheckM2 and GUNC: a clean MAG is >=70% complete, <=10% contaminated and not "
+        "chimeric.\nCPU-hours cover binning and refinement, the steps the presets change; assembly "
+        "costs about 80 CPU-hours in every arm. Dashed lines mark metaWRAP 1. Methods: "
+        "docs/benchmarks.md.",
+    )
+
+
 def main() -> int:
     style()
     os.makedirs(FIGURES, exist_ok=True)
     agg = load()
+    fig_headline()
     fig_mw1(agg)
     fig_mw1_steps()
     fig_cost_landscape(agg)
