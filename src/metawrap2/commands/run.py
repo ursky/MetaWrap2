@@ -1550,10 +1550,12 @@ def child_global_flags(force: bool, resume: bool, dry_run: bool) -> List[str]:
             flags.append(flag)
 
     if runner.heartbeat_seconds is not None:
-        flags.extend([
-            "--heartbeat-seconds",
-            str(runner.heartbeat_seconds),
-        ])
+        flags.extend(
+            [
+                "--heartbeat-seconds",
+                str(runner.heartbeat_seconds),
+            ]
+        )
 
     return flags
 

@@ -1,4 +1,3 @@
-
 """Tests for global CLI flag propagation from the run/cohort driver to child modules.
 
 Guards a past bug: the driver applied global resource and execution overrides to the
@@ -40,6 +39,7 @@ def _child_flags(force=False, resume=False, dry_run=False):
         dry_run=dry_run,
     )
 
+
 # --- resource limit overrides -------------------------------------------------------------
 
 
@@ -72,9 +72,12 @@ def test_multiple_resource_overrides_are_forwarded_together():
     flags = _child_flags()
 
     assert flags == [
-        "--max-threads", "32",
-        "--max-memory-gb", "1000.0",
-        "--max-disk-fraction", "0.9",
+        "--max-threads",
+        "32",
+        "--max-memory-gb",
+        "1000.0",
+        "--max-disk-fraction",
+        "0.9",
     ]
 
 
@@ -107,7 +110,8 @@ def test_execution_flags_are_forwarded():
         "--skip-space-check",
         "--skip-validation",
         "--verbose-logs",
-        "--heartbeat-seconds", "15.0",
+        "--heartbeat-seconds",
+        "15.0",
     ]
 
 
@@ -121,7 +125,8 @@ def test_heartbeat_zero_is_forwarded():
     command.set_heartbeat_seconds(0)
 
     assert _child_flags() == [
-        "--heartbeat-seconds", "0.0",
+        "--heartbeat-seconds",
+        "0.0",
     ]
 
 
@@ -138,9 +143,12 @@ def test_child_command_includes_global_flags():
         name="read_qc:A",
         module="read_qc",
         argv=[
-            "-1", "raw/A_1.fastq.gz",
-            "-2", "raw/A_2.fastq.gz",
-            "-o", "study/READ_QC/A",
+            "-1",
+            "raw/A_1.fastq.gz",
+            "-2",
+            "raw/A_2.fastq.gz",
+            "-o",
+            "study/READ_QC/A",
         ],
     )
 
@@ -170,9 +178,12 @@ def test_child_command_preserves_module_arguments():
         name="assembly:A",
         module="assembly",
         argv=[
-            "-1", "reads/A_1.fastq.gz",
-            "-2", "reads/A_2.fastq.gz",
-            "-o", "study/ASSEMBLY/A",
+            "-1",
+            "reads/A_1.fastq.gz",
+            "-2",
+            "reads/A_2.fastq.gz",
+            "-o",
+            "study/ASSEMBLY/A",
         ],
     )
 
@@ -188,7 +199,6 @@ def test_child_command_preserves_module_arguments():
     assert argv[argv.index("-t") + 1] == "16"
     assert argv[argv.index("-m", argv.index("assembly")) + 1] == "60"
     assert argv[argv.index("--config") + 1] == "metawrap2.toml"
-
 
 
 # --- workflow entry points ----------------------------------------------------------------
@@ -210,8 +220,7 @@ r2 = "raw/A_2.fastq.gz"
     seen = {}
 
     def fake_execute(
-        steps, layout, study, threads, jobs, config,
-        global_flags, state, dry_run, **kwargs
+        steps, layout, study, threads, jobs, config, global_flags, state, dry_run, **kwargs
     ):
         seen["flags"] = global_flags
         seen["steps"] = steps
@@ -226,7 +235,8 @@ r2 = "raw/A_2.fastq.gz"
 
     argv = [
         str(sheet),
-        "-o", str(tmp_path / "study"),
+        "-o",
+        str(tmp_path / "study"),
     ]
 
     if cohort:
@@ -244,10 +254,7 @@ r2 = "raw/A_2.fastq.gz"
     assert "--skip-validation" in flags
 
     # Verify that the generated flags reach the child module command.
-    read_qc = next(
-        step for step in seen["steps"]
-        if step.module == "read_qc"
-    )
+    read_qc = next(step for step in seen["steps"] if step.module == "read_qc")
 
     child_argv = read_qc.command(
         threads=16,
