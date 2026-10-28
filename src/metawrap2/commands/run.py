@@ -1519,6 +1519,47 @@ def _after_group(step: Step, layout: Layout, study: Study, dry_run: bool) -> Non
         concatenate_for_coassembly(layout, study, dry_run)
 
 
+def child_global_flags(force: bool, resume: bool, dry_run: bool) -> List[str]:
+    """Serialize process-level CLI settings for child module invocations."""
+    from .. import command as _command
+
+    flags = []
+
+    if force:
+        flags.append("--force")
+    if resume:
+        flags.append("--resume")
+    if dry_run:
+        flags.append("--dry-run")
+
+    for key, value in _limits.overrides().items():
+        if key == "gpu_strict":
+            if value:
+                flags.append("--gpu-strict")
+        else:
+            flags.extend(["--" + key.replace("_", "-"), str(value)])
+
+    runner = _command.runner
+
+    for attr, flag in (
+        ("skip_space_check", "--skip-space-check"),
+        ("skip_validation", "--skip-validation"),
+        ("verbose_logs", "--verbose-logs"),
+    ):
+        if getattr(runner, attr):
+            flags.append(flag)
+
+    if runner.heartbeat_seconds is not None:
+        flags.extend(
+            [
+                "--heartbeat-seconds",
+                str(runner.heartbeat_seconds),
+            ]
+        )
+
+    return flags
+
+
 # --- entry point --------------------------------------------------------------------------
 
 
@@ -1686,13 +1727,11 @@ def main(argv: List[str], prog: str = "metawrap2 run", cohort: bool = False) -> 
     layout = Layout(args.output)
     os.makedirs(layout.root, exist_ok=True)
 
-    global_flags: List[str] = []
-    if force:
-        global_flags.append("--force")
-    if resume:
-        global_flags.append("--resume")
-    if dry_run:
-        global_flags.append("--dry-run")
+    global_flags = child_global_flags(
+        force=force,
+        resume=resume,
+        dry_run=dry_run,
+    )
 
     steps = plan_steps(study, layout)
 
