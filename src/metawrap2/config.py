@@ -274,6 +274,28 @@ NON_PATH_DB_KEYS = {"BLASTDB_NAME"}
 #: install-db points GUNC_DB at the ``.dmnd`` itself.
 FILE_DB_KEYS = {"GUNC_DB"}
 
+# Supported Slurm configuration keys for job submission and resource allocation.
+SLURM_KEYS = frozenset(
+    {
+        "partition",
+        "account",
+        "time",
+        "threads",
+        "memory_gb",
+        "gres",
+        "gpus",
+        "constraint",
+        "qos",
+        "output",
+        "error",
+        "poll_seconds",
+        "modules",
+    }
+)
+
+# Slurm keys that can be overridden per module, excluding the module overrides table itself.
+SLURM_MODULE_KEYS = SLURM_KEYS - {"modules"}
+
 
 class ConfigError(Exception):
     """The config file cannot be used as written."""
@@ -307,12 +329,45 @@ class Settings:
     #: it, and a cohort driver divides it among concurrent samples. See metawrap2.limits.
     limits: LimitsConfig = field(default_factory=LimitsConfig)
     overrides: Dict[str, Dict[str, object]] = field(default_factory=dict)
+    #: Slurm defaults and per-module overrides.
+    slurm: Dict[str, Any] = field(default_factory=dict)
 
     def db(self, key: str) -> str:
         return self.databases.get(key, "")
 
     def module_override(self, module: str) -> Dict[str, object]:
         return self.overrides.get(module, {})
+
+
+def resolve_slurm_settings(
+    settings: Settings,
+    module: str,
+    overrides: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Resolve Slurm settings for a module.
+
+    Precedence: CLI overrides > per-module Slurm settings > global Slurm settings.
+    """
+    slurm = settings.slurm
+
+    resolved = {
+        key: value
+        for key, value in slurm.items()
+        if key != "modules"
+    }
+
+    resolved.update(slurm.get("modules", {}).get(module, {}))
+
+    if overrides:
+        resolved.update(
+            {
+                key: value
+                for key, value in overrides.items()
+                if value is not None
+            }
+        )
+
+    return resolved
 
 
 def find_config(explicit: Optional[str] = None) -> Optional[str]:
@@ -348,6 +403,7 @@ CONFIG_TABLES = {
     "databases": "database paths - see DB_KEYS",
     "limits": "the run's resource budget - see metawrap2.limits.LIMITS_KEYS",
     "modules": "per-module option overrides, e.g. [modules.binning]",
+    "slurm": "Slurm job submission and resource options - see SLURM_KEYS"
 }
 
 
@@ -407,6 +463,47 @@ def check_config(data: Dict[str, Any], path: str = "") -> Tuple[List[str], List[
             # The message names the key; put the file name in front of it.
             problems.append("%s%s" % (("%s: " % path) if path else "", exc))
     databases = data.get("databases")
+    slurm = data.get("slurm")
+    if slurm is not None:
+        if not isinstance(slurm, dict):
+            problems.append("[slurm]%s must be a table" % where)
+        else:
+            for key in slurm:
+                if key not in SLURM_KEYS:
+                    problems.append(
+                        "unknown key 'slurm.%s'%s%s. Known keys: %s"
+                        % (key, where, _did_you_mean(key, SLURM_KEYS), ", ".join(sorted(SLURM_KEYS)))
+                    )
+
+            modules = slurm.get("modules", {})
+            if not isinstance(modules, dict):
+                problems.append("[slurm.modules]%s must be a table" % where)
+            else:
+                for module, options in modules.items():
+                    if module not in MODULE_ENVS:
+                        problems.append(
+                            "unknown Slurm module %r%s%s"
+                            % (module, where, _did_you_mean(module, MODULE_ENVS))
+                        )
+
+                    if not isinstance(options, dict):
+                        problems.append(
+                            "[slurm.modules.%s]%s must be a table" % (module, where)
+                        )
+                        continue
+
+                    for key in options:
+                        if key not in SLURM_MODULE_KEYS:
+                            problems.append(
+                                "unknown key 'slurm.modules.%s.%s'%s%s. Known keys: %s"
+                                % (
+                                    module,
+                                    key,
+                                    where,
+                                    _did_you_mean(key, SLURM_MODULE_KEYS),
+                                    ", ".join(sorted(SLURM_MODULE_KEYS)),
+                                )
+                            )
     if isinstance(databases, dict):
         known = set(DB_KEYS) | OPTIONAL_DB_KEYS
         for key in databases:
@@ -478,6 +575,7 @@ def load_settings(explicit: Optional[str] = None, strict: bool = True) -> Settin
         low_utilisation_fraction=optional_float("low_utilisation_fraction"),
         limits=limits,
         overrides={k: dict(v) for k, v in data.get("modules", {}).items()},
+        slurm=dict(data.get("slurm", {})),
     )
 
 

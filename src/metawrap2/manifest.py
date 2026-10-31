@@ -226,10 +226,37 @@ class Manifest:
             # interrupted step (e.g. after an OOM) keeps it. See metawrap2.limits and
             # `metawrap2 calibrate`.
             entry["grant"] = dict(grant)
+            # Record the executor before submission so an interrupted Slurm submission
+            # can be distinguished from an ordinary interrupted local step.
+            if grant and grant.get("executor"):
+                entry["executor"] = str(grant["executor"])
         with self._lock:
             self.data["steps"][name] = entry
             self.save()
         return started
+
+    def record_scheduler_job(
+        self,
+        name: str,
+        executor: str,
+        job_id: str,
+    ) -> None:
+        """Persist the scheduler job ID for a running step.
+
+        A scheduler job is attached only after the step's execution record exists. Rejecting
+        missing or finished steps prevents an old submission from overwriting a completed run.
+        """
+        with self._lock:
+            entry = self.data["steps"].get(name)
+
+            if entry is None or entry.get("status") != "running":
+                raise ValueError(
+                    "Cannot attach scheduler job to a step that is not running: %s" % name
+                )
+
+            entry["executor"] = executor
+            entry["scheduler_job_id"] = job_id
+            self.save()
 
     def finish(
         self,
@@ -272,6 +299,8 @@ class Manifest:
             return False, "no record of it in the manifest"
         if record.status != COMPLETED:
             return False, "last attempt %s" % record.status
+        if not record.outputs:
+            return False, "step has no recorded outputs"
         problem = record.outputs_present()
         if problem:
             return False, problem

@@ -81,6 +81,30 @@ use_conda_envs = true
 # Optional: override any surfaced module constant without editing the source.
 # [modules.binning]
 # MIN_CONTIG_LEN = 2000
+
+# Slurm execution settings (used with --executor slurm).
+# Resource allocations are per job, not divided across concurrent jobs.
+
+[slurm]
+partition = "shared"
+account = "my_account"
+time = "12:00:00"
+threads = 8
+memory_gb = 32
+
+# Example high-memory assembly job.
+[slurm.modules.assembly]
+partition = "bigmem"
+threads = 32
+memory_gb = 500
+time = "48:00:00"
+
+# Optional GPU configuration for GPU-enabled binning.
+# [slurm.modules.binning]
+# partition = "gpu"
+# gres = "gpu:1"
+# threads = 16
+# memory_gb = 128
 """
 
 

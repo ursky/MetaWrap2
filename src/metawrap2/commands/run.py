@@ -52,7 +52,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from .. import limits as _limits
 from .. import usage as _usage
 from ..cliformat import make_parser
-from ..config import load_settings
+from ..config import Settings, load_settings, resolve_slurm_settings
 from ..io import reads as _reads
 from ..logging import announcement, comm, error, warning
 from ..manifest import COMPLETED, FAILED, INTERRUPTED, MANIFEST_NAME, Manifest
@@ -60,6 +60,7 @@ from ..modules import _common
 from ..modules import binning as _binning
 from ..modules import coverage as _coverage
 from ..modules import dereplicate as _dereplicate
+from ..slurm import SlurmConfig, SlurmError, submit_job, wait_for_job
 
 if sys.version_info >= (3, 11):
     import tomllib as _toml
@@ -1133,6 +1134,56 @@ class StepState:
     ) -> None:
         self.manifest.finish(step.name, started, status, outputs=step.outputs, log=log, usage=usage)
 
+    def record_slurm_job(self, step: Step, job_id: str) -> None:
+        """Record the Slurm job associated with a step."""
+        self.manifest.record_scheduler_job(
+            step.name,
+            "slurm",
+            job_id,
+        )
+
+    def running_slurm_job(self, step: Step) -> Optional[str]:
+        """Return a previous active Slurm job ID when resuming a step."""
+        if not self.resume:
+            return None
+
+        record = self.manifest.step(step.name)
+        if record is None:
+            return None
+
+        data = record.data
+
+        if data.get("status") != "running":
+            return None
+
+        executor = data.get("executor") or data.get("grant", {}).get("executor")
+        if executor != "slurm":
+            return None
+
+        return data.get("scheduler_job_id")
+
+    def check_slurm_resume(self, step: Step) -> None:
+        """Refuse to resubmit a Slurm step with unresolved execution state."""
+        if not self.resume:
+            return
+
+        record = self.manifest.step(step.name)
+        if record is None:
+            return
+
+        data = record.data
+
+        if data.get("status") != "running":
+            return
+
+        executor = data.get("executor") or data.get("grant", {}).get("executor")
+        if executor == "slurm":
+            if not data.get("scheduler_job_id"):
+                raise SlurmError(
+                    "%s was running under Slurm but has no recorded job ID. "
+                    "Check squeue/sacct before resubmitting." % step.name
+                )
+
 
 def strategy_record(study: Study) -> Dict[str, Any]:
     """Return how this study's catalogue was built: strategy, sample count, and dereplication.
@@ -1304,6 +1355,202 @@ def run_step(
     return step, status, log_path
 
 
+
+def run_slurm_step(
+    step: Step,
+    layout: Layout,
+    threads: int,
+    config: Optional[str],
+    global_flags: Sequence[str],
+    dry_run: bool,
+    state: Optional[StepState] = None,
+    memory_gb: Optional[int] = None,
+    slurm_config: Optional[SlurmConfig] = None,
+) -> Tuple[Step, str, str]:
+    """Run or reconnect to one Slurm job, blocking until it finishes.
+
+    An active job recorded in the manifest is reused on --resume. A monitoring failure
+    leaves its manifest record running, so a later resume can reconnect without submitting
+    the same expensive module twice.
+    """
+    if memory_gb is None:
+        raise ValueError("Slurm requires a memory allocation.")
+
+    if slurm_config is None:
+        slurm_config = SlurmConfig()
+
+    os.makedirs(layout.log_dir, exist_ok=True)
+    log_path = step_log_path(layout, step)
+    safe_name = step.name.replace(":", "_")
+
+    script_path = os.path.join(
+        layout.root,
+        ".metawrap2",
+        "slurm",
+        f"{safe_name}.sh",
+    )
+
+    argv = step.command(
+        threads,
+        config,
+        global_flags,
+        memory_gb=memory_gb,
+    )
+
+    if dry_run:
+        print("[slurm plan] " + shlex.join(argv))
+        return step, COMPLETED, log_path
+
+    grant: Dict[str, Any] = {
+        "threads": threads,
+        "memory_gb": memory_gb,
+        "executor": "slurm",
+    }
+
+    job_id: Optional[str] = None
+    started = time.time()
+    status = FAILED
+    final_state_known = False
+
+    # Check for an unfinished previous Slurm attempt before changing the manifest.
+    if state is not None:
+        state.check_slurm_resume(step)
+        job_id = state.running_slurm_job(step)
+
+        if job_id is not None:
+            record = state.manifest.step(step.name)
+            if record is None or record.data.get("command") != argv:
+                raise SlurmError(
+                    "%s has an active Slurm job %s, but its command has changed. "
+                    "Do not overwrite its outputs while it may still be running."
+                    % (step.name, job_id)
+                )
+            comm("reconnecting %s to Slurm job %s" % (step.name, job_id))
+
+    if job_id is None:
+        started = (
+            state.start(step, argv, grant=grant)
+            if state is not None
+            else time.time()
+        )
+
+        try:
+            job_id = submit_job(
+                argv,
+                name=f"mw2_{safe_name}",
+                threads=threads,
+                memory_gb=memory_gb,
+                script_path=script_path,
+                log_path=log_path,
+                config=slurm_config,
+            )
+        except (SlurmError, OSError) as exc:
+            # A submission error is not always proof that the scheduler rejected the job.
+            # Keep the record unresolved rather than risk automatic duplicate submission.
+            warning(
+                "%s submission could not be confirmed: %s. "
+                "Check squeue/sacct before resuming."
+                % (step.name, exc)
+            )
+            raise SlurmError(
+                "Slurm submission outcome is uncertain for %s" % step.name
+            ) from exc
+
+        if state is not None:
+            state.record_slurm_job(step, job_id)
+
+        comm("submitted %s: Slurm job %s" % (step.name, job_id))
+
+    try:
+        result = wait_for_job(job_id, slurm_config)
+        final_state_known = True
+
+        if result.returncode != 0 or result.state != "COMPLETED":
+            warning("%s failed: %s" % (step.name, result.message))
+        else:
+            missing = [path for path in step.outputs if not os.path.exists(path)]
+            empty = [
+                path
+                for path in step.outputs
+                if os.path.isfile(path) and os.path.getsize(path) == 0
+            ]
+
+            if missing or empty:
+                warning(
+                    "%s finished but its outputs are invalid: missing=%s, empty=%s"
+                    % (step.name, missing, empty)
+                )
+            else:
+                status = COMPLETED
+
+    except SlurmError as exc:
+        # The job might still be running. Do not mark it failed or clear its ID.
+        warning(
+            "Could not determine final state of Slurm job %s for %s: %s"
+            % (job_id, step.name, exc)
+        )
+        raise
+
+    except KeyboardInterrupt:
+        # Keep the running manifest record so --resume can reconnect.
+        warning(
+            "Interrupted while monitoring Slurm job %s. "
+            "The job has not been cancelled; use --resume to reconnect."
+            % job_id
+        )
+        raise
+
+    finally:
+        if state is not None and final_state_known:
+            state.finish(
+                step,
+                started,
+                status,
+                log=log_path,
+            )
+
+    return step, status, log_path
+
+
+def slurm_resources_for(
+    step: Step,
+    settings: Settings,
+    cli_overrides: Dict[str, Any],
+    default_threads: int = 8,
+    default_memory_gb: int = 32
+) -> Tuple[int, int, SlurmConfig]:
+    """Resolve CPU, memory, and scheduling options for a step."""
+
+    opts = resolve_slurm_settings(
+        settings,
+        step.module,
+        cli_overrides,
+    )
+
+    threads = int(opts.get("threads", default_threads))
+    memory_gb = int(opts.get("memory_gb", default_memory_gb))
+
+    if threads < 1 or memory_gb < 1:
+        raise ValueError(
+            "Slurm threads and memory must be positive."
+        )
+
+    config = SlurmConfig(
+        partition=opts.get("partition"),
+        account=opts.get("account"),
+        time=opts.get("time", "24:00:00"),
+        gres=opts.get("gres"),
+        gpus=opts.get("gpus"),
+        constraint=opts.get("constraint"),
+        qos=opts.get("qos"),
+        output=opts.get("output"),
+        error=opts.get("error"),
+        poll_seconds=int(opts.get("poll_seconds", 10)),
+    )
+
+    return threads, memory_gb, config
+
+
 def cores_busy(usage: Dict[str, Any]) -> Optional[float]:
     """Return the mean busy cores for a step: CPU seconds over wall seconds.
 
@@ -1350,11 +1597,24 @@ def execute(
     state: StepState,
     dry_run: bool,
     memory_gb: Optional[int] = None,
+    executor: str = "local",
+    settings: Optional[Settings] = None,
+    cli_overrides: Optional[Dict[str, Any]] = None,
 ) -> int:
     """Run the planned steps in order, grouping the parallelisable ones. Returns an exit code."""
     index = 0
     completed = 0
     advised = False  # whether the -j suggestion has already been made for this run
+
+    if executor not in ("local", "slurm"):
+        raise ValueError("Unknown executor: %s" % executor)
+
+    if settings is None:
+        settings = Settings()
+
+    if cli_overrides is None:
+        cli_overrides = {}
+
     while index < len(steps):
         step = steps[index]
         # Gather a run of consecutive steps that share a parallel group.
@@ -1386,23 +1646,54 @@ def execute(
         _before_group(group[0], layout, study, dry_run)
 
         workers = max(1, min(jobs, len(pending)))
-        per_step_threads = max(1, threads // workers)
-        # Divide the memory budget like the threads, so N concurrent steps (e.g. SPAdes) do not
-        # each request the whole budget.
-        per_step_memory = max(1, memory_gb // workers) if memory_gb else None
-        if len(pending) > 1:
+
+        if executor == "local":
+            per_step_threads = max(1, threads // workers)
+            # Divide the local memory budget among concurrent steps, so concurrent jobs do
+            # not collectively request more memory than the machine can provide.
+            per_step_memory = max(1, memory_gb // workers) if memory_gb else None
+
+            if len(pending) > 1:
+                announcement(
+                    "RUNNING %d x %s (%d at a time, %d threads%s each)"
+                    % (
+                        len(pending),
+                        group[0].module,
+                        workers,
+                        per_step_threads,
+                        " and %dGB" % per_step_memory if per_step_memory else "",
+                    )
+                )
+            else:
+                announcement("RUNNING %s" % pending[0].name.upper())
+
+        else:
+            # Slurm allocates resources for each job independently, so -j controls only
+            # how many jobs the driver submits concurrently.
+            per_step_threads = threads
+            per_step_memory = memory_gb
+
             announcement(
-                "RUNNING %d x %s (%d at a time, %d threads%s each)"
+                "SUBMITTING %d x %s TO SLURM (%d at a time)"
+                % (len(pending), group[0].module, workers)
+            )
+
+            step_threads, step_memory, step_config = slurm_resources_for(
+                pending[0],
+                settings,
+                cli_overrides,
+                default_threads=threads,
+                default_memory_gb=memory_gb
+            )
+
+            comm(
+                "Slurm resources per job: %d CPUs, %d GB memory, partition %s"
                 % (
-                    len(pending),
-                    group[0].module,
-                    workers,
-                    per_step_threads,
-                    " and %dGB" % per_step_memory if per_step_memory else "",
+                    step_threads,
+                    step_memory,
+                    step_config.partition or "cluster default",
                 )
             )
-        else:
-            announcement("RUNNING %s" % pending[0].name.upper())
         # Print the live log path before the step starts, since the console is quiet during long
         # steps.
         if len(pending) == 1:
@@ -1413,20 +1704,44 @@ def execute(
         failures = []
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = [
-                    pool.submit(
-                        run_step,
-                        s,
-                        layout,
-                        per_step_threads,
-                        config,
-                        global_flags,
-                        dry_run,
-                        state,
-                        per_step_memory,
-                    )
-                    for s in pending
-                ]
+                futures = []
+                for s in pending:
+                    if executor == "slurm":
+                        step_threads, step_memory, step_config = (
+                            slurm_resources_for(
+                                s,
+                                settings,
+                                cli_overrides,
+                                default_threads=threads,
+                                default_memory_gb=memory_gb
+                            )
+                        )
+
+                        future = pool.submit(
+                            run_slurm_step,
+                            s,
+                            layout,
+                            step_threads,
+                            config,
+                            global_flags,
+                            dry_run,
+                            state,
+                            step_memory,
+                            step_config,
+                        )
+                    else:
+                        future = pool.submit(
+                            run_step,
+                            s,
+                            layout,
+                            per_step_threads,
+                            config,
+                            global_flags,
+                            dry_run,
+                            state,
+                            per_step_memory,
+                        )
+                    futures.append(future)
                 for future in concurrent.futures.as_completed(futures):
                     s, status, log_path = future.result()
                     if status == COMPLETED:
@@ -1439,7 +1754,11 @@ def execute(
                             else "finished %s" % s.name
                         )
                         # Advise once per run; later steps of a stage would repeat it.
-                        busy = cores_busy(cost) if not advised and len(pending) > 1 else None
+                        busy = (
+                            cores_busy(cost)
+                            if executor == "local" and not advised and len(pending) > 1
+                            else None
+                        )
                         if busy is not None:
                             advice = parallelism_advice(
                                 s.module, busy, per_step_threads, len(pending), workers
@@ -1458,6 +1777,13 @@ def execute(
                 "are skipped."
             )
             return 130
+        except SlurmError as exc:
+            warning(
+                "Slurm execution stopped: %s\n"
+                "Check the scheduler and resume the study after resolving the problem."
+                % exc
+            )
+            return 1
 
         if failures:
             for s, log_path in failures:
@@ -1643,6 +1969,19 @@ def main(argv: List[str], prog: str = "metawrap2 run", cohort: bool = False) -> 
     )
     ap.add_argument("--config", help="path to metawrap2.toml")
     ap.add_argument("--example", action="store_true", help="print an example sample sheet and exit")
+    ap.add_argument(
+        "--executor",
+        choices=("local", "slurm"),
+        default="local",
+        help="execution backend (default: local)"
+    )
+    ap.add_argument("--slurm-partition")
+    ap.add_argument("--slurm-account")
+    ap.add_argument("--slurm-time")
+    ap.add_argument("--slurm-gres")
+    ap.add_argument("--slurm-gpus")
+    ap.add_argument("--slurm-qos")
+    ap.add_argument("--slurm-constraint")
     args = ap.parse_args(argv)
 
     if args.example:
@@ -1653,6 +1992,16 @@ def main(argv: List[str], prog: str = "metawrap2 run", cohort: bool = False) -> 
             "a sample sheet (or directory) and -o/--output are required; "
             "see `metawrap2 run --example`"
         )
+        
+    cli_overrides = {
+        "partition": args.slurm_partition,
+        "account": args.slurm_account,
+        "time": args.slurm_time,
+        "gres": args.slurm_gres,
+        "gpus": args.slurm_gpus,
+        "qos": args.slurm_qos,
+        "constraint": args.slurm_constraint,
+    }
 
     try:
         study = (
@@ -1698,32 +2047,44 @@ def main(argv: List[str], prog: str = "metawrap2 run", cohort: bool = False) -> 
     force = bool(args.force or _command.runner.force)
 
     settings = load_settings(args.config)
-    # The driver knows how many steps run at once, so it resolves the budget and divides it;
-    # otherwise each concurrent module would claim the whole budget. See metawrap2.limits.
-    budget = _limits.resolve(settings.limits)
-    threads = args.threads or settings.threads or budget.threads
-    if threads > budget.threads:
-        if args.threads is not None:
-            warning(
-                "Asked for %d threads but the budget allows %d of this machine's %d cores; "
-                "using %d. Raise [limits] max_thread_fraction or max_threads to use more."
-                % (threads, budget.threads, budget.machine_cores, budget.threads)
-            )
-        threads = budget.threads
-    memory_gb = args.memory or max(1, int(budget.memory_gb))
-    if memory_gb > budget.memory_gb:
-        if args.memory is not None:
-            warning(
-                "Asked for %d GB but the budget allows %d GB of this machine's %s; using %d. "
-                "Raise [limits] max_memory_fraction or max_memory_gb to use more."
-                % (
-                    memory_gb,
-                    int(budget.memory_gb),
-                    _limits.human(budget.machine_memory_bytes),
-                    int(budget.memory_gb),
+    # Local execution uses the resource budget of the current machine. Slurm jobs run on
+    # compute nodes, so their allocations must not be capped by the controller's resources.
+    if args.executor == "slurm":
+        threads = args.threads or settings.threads or 8
+        memory_gb = args.memory or 32
+        budget = None
+
+        if threads < 1 or memory_gb < 1:
+            error("Slurm thread and memory allocations must be positive.")
+
+    else:
+        budget = _limits.resolve(settings.limits)
+        threads = args.threads or settings.threads or budget.threads
+
+        if threads > budget.threads:
+            if args.threads is not None:
+                warning(
+                    "Asked for %d threads but the budget allows %d of this machine's %d cores; "
+                    "using %d. Raise [limits] max_thread_fraction or max_threads to use more."
+                    % (threads, budget.threads, budget.machine_cores, budget.threads)
                 )
-            )
-        memory_gb = max(1, int(budget.memory_gb))
+            threads = budget.threads
+
+        memory_gb = args.memory or max(1, int(budget.memory_gb))
+
+        if memory_gb > budget.memory_gb:
+            if args.memory is not None:
+                warning(
+                    "Asked for %d GB but the budget allows %d GB of this machine's %s; using %d. "
+                    "Raise [limits] max_memory_fraction or max_memory_gb to use more."
+                    % (
+                        memory_gb,
+                        int(budget.memory_gb),
+                        _limits.human(budget.machine_memory_bytes),
+                        int(budget.memory_gb),
+                    )
+                )
+            memory_gb = max(1, int(budget.memory_gb))
     layout = Layout(args.output)
     os.makedirs(layout.root, exist_ok=True)
 
@@ -1738,10 +2099,16 @@ def main(argv: List[str], prog: str = "metawrap2 run", cohort: bool = False) -> 
     announcement("METAWRAP2 STUDY: %d SAMPLE(S), %d STEP(S)" % (len(study.samples), len(steps)))
     comm("samples: %s" % ", ".join(s.name for s in study.samples))
     comm("steps: %s" % " -> ".join(study.steps))
-    comm(
-        "%s assembly; %d threads total, %d job(s) at a time"
-        % ("co-" if study.coassemble else "per-sample", threads, args.jobs)
-    )
+    if args.executor == "slurm":
+        comm(
+            "%s assembly; Slurm executor, up to %d concurrent job(s)"
+            % ("co-" if study.coassemble else "per-sample", args.jobs)
+        )
+    else:
+        comm(
+            "%s assembly; %d threads total, %d job(s) at a time"
+            % ("co-" if study.coassemble else "per-sample", threads, args.jobs)
+        )
     comm("output: %s" % layout.root)
     strategy = strategy_record(study)
     comm(
@@ -1752,13 +2119,20 @@ def main(argv: List[str], prog: str = "metawrap2 run", cohort: bool = False) -> 
             "on" if strategy["dereplicated"] else "off",
         )
     )
-    comm("Resource budget: %s" % budget.describe())
-    overrides = _limits.overrides()
-    if overrides:
-        comm(
-            "Budget overridden on the command line: %s"
-            % ", ".join("--%s %s" % (k.replace("_", "-"), v) for k, v in sorted(overrides.items()))
-        )
+    if args.executor == "local":
+        comm("Resource budget: %s" % budget.describe())
+
+        overrides = _limits.overrides()
+        if overrides:
+            comm(
+                "Budget overridden on the command line: %s"
+                % ", ".join(
+                    "--%s %s" % (k.replace("_", "-"), v)
+                    for k, v in sorted(overrides.items())
+                )
+            )
+    else:
+        comm("Slurm resources are resolved independently for each module.")
 
     state = StepState(layout, resume=resume, strict_fingerprints=args.strict_fingerprints)
     # Written before the first step, so a failed or interrupted study still records its strategy.
@@ -1776,6 +2150,9 @@ def main(argv: List[str], prog: str = "metawrap2 run", cohort: bool = False) -> 
         state,
         dry_run,
         memory_gb=memory_gb,
+        executor=args.executor,
+        settings=settings,
+        cli_overrides=cli_overrides,
     )
 
 
