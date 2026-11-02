@@ -36,6 +36,7 @@ from .cmdtemplate import Raw, fill_command, quoted_words
 SBATCH = "sbatch"
 SQUEUE = "squeue"
 SACCT = "sacct"
+SCONTROL = "scontrol"
 SCANCEL = "scancel"
 
 #: Seconds between state checks of one job. Each check is one squeue call.
@@ -92,6 +93,10 @@ class SlurmError(RuntimeError):
 
 class SubmissionRejected(SlurmError):
     """sbatch refused the job, so nothing was submitted."""
+
+
+class JobOutcomeUnknown(SlurmError):
+    """A Slurm job ended or disappeared, but its final outcome cannot be determined."""
 
 
 class JobInterrupted(Exception):
@@ -154,7 +159,9 @@ def _run(
         raise SlurmError("could not run %s: %s" % (argv[0], exc)) from exc
 
 
-def missing_commands(names: Sequence[str] = (SBATCH, SQUEUE, SACCT, SCANCEL)) -> List[str]:
+def missing_commands(
+    names: Sequence[str] = (SBATCH, SQUEUE, SACCT, SCONTROL, SCANCEL),
+) -> List[str]:
     """The Slurm client commands that are not on PATH."""
     return [name for name in names if shutil.which(name) is None]
 
@@ -387,6 +394,50 @@ def accounting_result(job_id: str) -> Optional[SlurmResult]:
     return SlurmResult(job_id, state, code, usage)
 
 
+def controller_result(job_id: str) -> Optional[SlurmResult]:
+    """Return a final job result still retained by slurmctld.
+
+    This is the fallback when sacct is unavailable or has not recorded the job.
+    scontrol only knows jobs that slurmctld still retains; after MinJobAge expires,
+    a finished job may no longer be available here.
+    """
+    result = _run([SCONTROL, "--oneliner", "show", "job", job_id])
+
+    if result.returncode != 0:
+        message = "%s\n%s" % (result.stdout, result.stderr)
+        lower = message.lower()
+
+        # A finished job may already have been purged from slurmctld.
+        if "invalid job id" in lower or "not found" in lower:
+            return None
+
+        raise SlurmError(
+            "scontrol failed for job %s: %s"
+            % (job_id, result.stderr.strip() or result.stdout.strip())
+        )
+
+    fields: Dict[str, str] = {}
+    for word in result.stdout.split():
+        key, separator, value = word.partition("=")
+        if separator:
+            fields[key] = value
+
+    state = _state(fields.get("JobState", ""))
+    if state not in TERMINAL_STATES:
+        return None
+
+    exit_code = fields.get("ExitCode")
+    if not exit_code:
+        # Do not invent a successful/failed outcome without an exit status.
+        return None
+
+    code = _exit_code(exit_code)
+    if state != "COMPLETED" and code == 0:
+        code = 1
+
+    return SlurmResult(job_id, state, code)
+
+
 def wait_for_job(
     job_id: str,
     poll_seconds: int = POLL_SECONDS,
@@ -395,57 +446,106 @@ def wait_for_job(
 ) -> SlurmResult:
     """Wait until job *job_id* has finished, and return its final state.
 
-    *on_state* is called with each new queue state (PENDING, RUNNING, ...). Raises
-    :class:`JobInterrupted` as soon as *stop* is set, and :class:`SlurmError` when the outcome
-    cannot be determined; the job is not cancelled in either case.
+    squeue follows an active job. Once the job ends, sacct is the preferred source
+    because it retains final state and resource usage. If accounting is unavailable,
+    scontrol is used as a fallback while slurmctld still retains the job.
+
+    Raises :class:`JobOutcomeUnknown` when the job has disappeared but neither
+    accounting nor the controller can establish its final outcome. The job itself
+    is never cancelled and callers can preserve its scheduler ID for reconciliation
+    on a later --resume.
     """
     if poll_seconds < 1:
         raise ValueError("the Slurm poll interval must be at least 1 s")
+
     gone_since: Optional[float] = None
     failing_since: Optional[float] = None
     last_state: Optional[str] = None
     unconfirmed: Optional[str] = None
+
     while True:
         if stop is not None and stop.is_set():
             raise JobInterrupted(job_id)
+
+        accounting_error: Optional[SlurmError] = None
+        controller_checked = False
+
         try:
             state = queue_state(job_id)
-            final = None
+            final: Optional[SlurmResult] = None
+
             if state is None or state in TERMINAL_STATES:
-                final = accounting_result(job_id)
+                try:
+                    final = accounting_result(job_id)
+                except SlurmError as exc:
+                    # sacct/slurmdbd may be unavailable even though slurmctld is
+                    # healthy. Do not treat that as a failed job.
+                    accounting_error = exc
+                    final = controller_result(job_id)
+                    controller_checked = True
+
+                # If squeue itself already reports a terminal state but sacct has
+                # not caught up, the controller should still know the job.
+                if final is None and state in TERMINAL_STATES and not controller_checked:
+                    final = controller_result(job_id)
+                    controller_checked = True
+
             failing_since = None
+
         except SlurmError as exc:
-            # The controller or the accounting database is busy or restarting. Keep trying for
-            # a while: the job is unaffected.
+            # The scheduler/controller itself is temporarily unavailable. Keep
+            # trying without changing the recorded job state.
             now = time.monotonic()
             failing_since = failing_since or now
+
             if now - failing_since >= QUERY_FAILURE_TIMEOUT_SECONDS:
                 raise SlurmError(
                     "could not query job %s for %d s: %s"
                     % (job_id, QUERY_FAILURE_TIMEOUT_SECONDS, exc)
                 ) from exc
+
             state, final = last_state, None
+
         else:
             if state is not None and state != last_state and on_state is not None:
                 on_state(state)
+
             last_state = state or last_state
+
+            if state is None and final is None:
+                now = time.monotonic()
+                gone_since = gone_since or now
+
+                if now - gone_since >= ACCOUNTING_TIMEOUT_SECONDS:
+                    # sacct may have returned successfully but simply have no record.
+                    # Give slurmctld one last chance before declaring the outcome
+                    # unknowable.
+                    if not controller_checked:
+                        final = controller_result(job_id)
+                        controller_checked = True
+
+                    if final is None:
+                        if accounting_error is not None:
+                            reason = "sacct is unavailable (%s)" % accounting_error
+                        else:
+                            reason = "sacct has no final state"
+
+                        raise JobOutcomeUnknown(
+                            "job %s has left squeue, but its final outcome is unknown "
+                            "after %d s: %s, and scontrol has no final state either. "
+                            "The scheduler job ID is being preserved so --resume can "
+                            "reconcile it later." % (job_id, ACCOUNTING_TIMEOUT_SECONDS, reason)
+                        )
+            else:
+                gone_since = None
+
             if final is not None:
                 if final.state not in _CONFIRM_TWICE or unconfirmed == final.state:
                     return final
                 unconfirmed = final.state
             else:
                 unconfirmed = None
-            if state is None and final is None:
-                now = time.monotonic()
-                gone_since = gone_since or now
-                if now - gone_since >= ACCOUNTING_TIMEOUT_SECONDS:
-                    raise SlurmError(
-                        "job %s has left squeue, but sacct has no final state for it after %d s. "
-                        "Check `sacct -j %s` (job accounting must be enabled)."
-                        % (job_id, ACCOUNTING_TIMEOUT_SECONDS, job_id)
-                    )
-            else:
-                gone_since = None
+
         if stop is not None:
             if stop.wait(poll_seconds):
                 raise JobInterrupted(job_id)
