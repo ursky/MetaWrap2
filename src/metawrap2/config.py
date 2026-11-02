@@ -270,9 +270,9 @@ OPTIONAL_DB_KEYS = {
 # Keys whose value is a setting, not a filesystem path, so they are not checked for existence.
 NON_PATH_DB_KEYS = {"BLASTDB_NAME"}
 
-#: Database keys whose value is a file, not a directory. GUNC takes only ``--db_file``, so
-#: install-db points GUNC_DB at the ``.dmnd`` itself.
-FILE_DB_KEYS = {"GUNC_DB"}
+#: Database keys whose values are files, not directories. Both GUNC_DB and CHECKM2DB
+#: point directly to their respective DIAMOND ``.dmnd`` database files.
+FILE_DB_KEYS = {"GUNC_DB", "CHECKM2DB"}
 
 
 @dataclass(frozen=True)
