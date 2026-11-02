@@ -29,6 +29,13 @@ def _capture(monkeypatch):
     return calls
 
 
+def _eligible_assembly(tmp_path):
+    """Create an assembly that passes SemiBin2's must-link preflight."""
+    assembly = tmp_path / "assembly.fa"
+    assembly.write_text(">contig1\n" + "ACGT" * 1000 + "\n")
+    return str(assembly)
+
+
 def test_gpu_pin_only_fires_for_an_explicit_index():
     assert binning.gpu_pin("cuda:2") == {"CUDA_VISIBLE_DEVICES": "2"}
     assert binning.gpu_pin("cuda:0") == {"CUDA_VISIBLE_DEVICES": "0"}
@@ -50,7 +57,14 @@ def test_semibin2_is_pinned_to_the_card_asked_for(tmp_path, monkeypatch):
     work = tmp_path / "work"
     work.mkdir()
     (work / "sample_0.bam").write_text("")
-    binning._run_semibin2(_Args(str(tmp_path / "out"), "cuda:1"), "e", str(work), "asm.fa")
+    assembly = _eligible_assembly(tmp_path)
+
+    binning._run_semibin2(
+        _Args(str(tmp_path / "out"), "cuda:1"),
+        "e",
+        str(work),
+        assembly,
+    )
     cmd, kwargs = calls[0]
     assert kwargs["extra_env"] == {"CUDA_VISIBLE_DEVICES": "1"}
     # The flag only selects GPU use; the device comes from the pin.
@@ -100,5 +114,12 @@ def test_a_cpu_run_sets_no_cuda_variable(tmp_path, monkeypatch):
     work = tmp_path / "work"
     work.mkdir()
     (work / "sample_0.bam").write_text("")
-    binning._run_semibin2(_Args(str(tmp_path / "out"), "cpu"), "e", str(work), "asm.fa")
+    assembly = _eligible_assembly(tmp_path)
+
+    binning._run_semibin2(
+        _Args(str(tmp_path / "out"), "cpu"),
+        "e",
+        str(work),
+        assembly,
+    )
     assert calls[0][1]["extra_env"] is None

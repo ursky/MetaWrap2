@@ -162,6 +162,9 @@ MAXBIN_MARKERS_UNIVERSAL = 40  # --universal (better Archaea binning)
 #: different bins, which adds noise to benchmarks and makes MAGs irreproducible. The value itself
 #: is arbitrary.
 SEMIBIN2_SEED = 1337
+#: Minimum contig length required for SemiBin2 self-supervised
+#: must-link pair generation.
+SEMIBIN2_MUST_LINK_LEN = 4000
 #: Where SemiBin2 writes its bins under its output directory, given the flags in SEMIBIN2
 #: (reclustering on, ``--write-pre-reclustering-bins`` off). The device default for SemiBin2 and the
 #: other learned binners is DEFAULT_LEARNED_DEVICE.
@@ -1044,6 +1047,16 @@ def gpu_preflight(args, device: str) -> None:
     (warning if report.contended else comm)(report.message)
 
 
+def _semibin2_has_must_link_contig(assembly: str) -> bool:
+    """Check whether SemiBin2 can generate self-supervised must-link pairs.
+
+    SemiBin2 requires at least one contig >= 4000 bp to generate
+    must-link pairs. Assemblies without qualifying contigs cannot
+    be trained in self-supervised mode.
+    """
+    return any(len(seq) >= SEMIBIN2_MUST_LINK_LEN for _, seq in iter_fasta(assembly))
+
+
 def _run_semibin2(args, env, work, assembly_copy):
     """Bin with SemiBin2, which reads the BAMs itself rather than a depth table.
 
@@ -1054,6 +1067,23 @@ def _run_semibin2(args, env, work, assembly_copy):
     sample. benchmarks/configurations.toml compares the costs.
     """
     announcement("RUNNING SEMIBIN2")
+
+    # Self-supervised SemiBin2 needs contigs >= 4000 bp for
+    # must-link pair generation. An assembly without qualifying
+    # contigs cannot be used to train the model.
+    #
+    # Skip this check during --dry-run because the staged assembly
+    # has not been created yet.
+    if not dry_run() and not _semibin2_has_must_link_contig(assembly_copy):
+        ensure_dir(os.path.join(args.output, "semibin2_bins"))
+
+        warning(
+            "Skipping SemiBin2: no contigs >= %d bp in %s. "
+            "Self-supervised training cannot generate must-link pairs. "
+            "Other binning methods will be preserved." % (SEMIBIN2_MUST_LINK_LEN, assembly_copy)
+        )
+        return
+
     device = resolve_device(args.device, env)
     gpu_preflight(args, device)
     out = os.path.join(work, "semibin2_out")

@@ -1,3 +1,16 @@
+Unreleased
+    Fixed - SemiBin2 fails on assemblies without sufficiently long contigs
+        SemiBin2 self-supervised training requires contigs >=4000 bp to generate
+            must-link pairs. Assemblies without qualifying contigs caused SemiBin2
+            to exit with code 1, stopping the binning pipeline.
+        Binning now checks the assembly before starting SemiBin2 and skips it
+            with an informative warning when no qualifying contigs exist.
+            Other binning methods and their results are preserved, and the
+            skipped step is checkpointed for --resume.
+        The preflight is skipped under --dry-run because the staged assembly
+            may not exist yet. Regression tests cover short contigs, the
+            4000 bp boundary, multiline FASTA, dry runs, GPU device pinning
+            and GPU preflight behavior.
 MetaWrap2 v=2.1.5
 	Binning presets are now `default` and `deep`, fixes from a second new-user test of 2.1.4, a
 		shorter README, and CI fixes.
