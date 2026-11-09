@@ -89,6 +89,32 @@ graph while building contigs, so the kept graph holds what the assembler could n
 does not hold the short contigs that binning missed. A graph method first needs a denser graph:
 prefer metaSPAdes to MEGAHIT, and Hi-C or long reads to either.
 
+## Bin refinement
+
+From 2.1.6 the default consolidator adds unions and differences over cliques of the bin-overlap
+graph to the Binning_refiner intersections, with a lookahead guard and `--contamination-weight`;
+metaWRAP 1's method is `--mw1-refinement`. On the Hadza sample and the faecal-transplant series the
+new default recovered 267 and 115 clean HQ MAGs, against 260 and 104 for Binette and 230 and 99 for
+metaWRAP 1.3.0 ([Benchmarks](docs/benchmarks.md#consolidators)).
+
+- `[moderate]` **In-process CheckM2 scoring of candidates.** The 2.1.6 default used 26.7-51.7
+  CPU-hours on CAMI2 against 2.2-3.1 for Binette, because CheckM2 predicts genes and runs DIAMOND
+  on every candidate bin separately, and unions and differences make the pool 2.4-2.7x larger than
+  intersections alone. Binette runs pyrodigal and DIAMOND once per assembly, builds each candidate's
+  CheckM2 feature vector by summing per-contig counts and calls the models in process, about 17
+  times faster per candidate. The same path would allow lifting the limits on the candidate pool
+  (overlap gate, combination size), which exist to keep the number of CheckM2 runs affordable.
+- `[low]` **Contig stripping from MAGScoT** (to measure next). MAGScoT removes the selected bin's
+  contigs from an overlapping bin and scores the remainder in the next round instead of discarding
+  it. Neither Binette nor `bin_refinement` does this.
+- `[low]` **Uncapped clique size** (to measure next). Binette enumerates every subset of every
+  maximal clique, so a genome split four or more ways can be rejoined.
+- `[low]` **A union gate without a completeness floor** (to measure next). Binette unions bins of
+  any completeness, so two clean fragments can be joined into a genome more complete than any input
+  bin.
+- Iteration (feeding a round's unions and differences back in as input bins) was measured and is
+  not planned: three rounds changed the clean HQ count by one on the two datasets measured.
+
 ## Taxonomic profiling
 
 - `[moderate]` **Read-level profilers**: MetaPhlAn 4 (Blanco-Míguez et al., *Nat Biotechnol* 2023),
@@ -132,11 +158,16 @@ prefer metaSPAdes to MEGAHIT, and Hi-C or long reads to either.
 - `[major]` **Workflow-engine backend**: run the modules under Nextflow (Di Tommaso et al., *Nat
   Biotechnol* 2017) or Snakemake (Mölder et al., *F1000Research* 2021), following nf-core/mag
   conventions (Krakau et al., *NAR Genom Bioinform* 2022).
-- `[major]` **Cloud execution**: Slurm, cloud batch or Kubernetes executors and object-store input/output. Docker
-  and Apptainer images already exist.
+- `[major]` **Cloud execution**: cloud batch or Kubernetes executors and object-store input/output.
+  Docker and Apptainer images already exist, and `--executor slurm` shipped in 2.1.6.
 
 ## Benchmarks
 
+- `[low]` **Binette and the 2.1.6 default in the `consolidator` comparison**: arms in
+  `benchmarks/configurations.toml` running Binette and the new default consolidator on the same bin
+  sets and assembly as the native arms. The 2.1.6 consolidator benchmark ran both outside the registry;
+  as registered arms they are re-measured with every change to `bin_refinement`. Binette's selection
+  depends on the Python hash seed, so its arm should run under several seeds and report the range.
 - `[low]` **`benchmark run --adopt <study>:<step>=<variant>`**: use a finished study step as one
   arm of a comparison, so the default arm is not run a second time.
 

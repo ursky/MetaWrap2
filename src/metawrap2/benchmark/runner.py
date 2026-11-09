@@ -41,8 +41,8 @@ from ..utils import strip_trailing_slash
 from .registry import PLACEHOLDER_RE, Comparison, Dataset, RegistryError, Variant
 from .scoring import Row
 
-#: How many bin sets bin_refinement will consolidate: its -A..-F flags, and the 2^n-1 CheckM runs
-#: behind them (63 for six sets).
+#: How many bin sets bin_refinement --mw1-refinement consolidates; it scores combinations of them
+#: with CheckM. The default consolidator takes any number.
 MAX_REFINEMENT_SETS = 6
 
 #: Modules the runner can feed, and what each needs beyond reads. An explicit table, so an
@@ -640,6 +640,17 @@ def publish_external_bins(variant: Variant, out_dir: str) -> str:
     return published
 
 
+#: Turns off the bin scores kept between runs (metawrap2.scorecache) for a measured arm.
+NO_SCORE_CACHE = "--no-score-cache"
+
+
+def _scores_bins(module: str, argv: Sequence[str]) -> bool:
+    """Whether a run of *module* with *argv* scores bins with CheckM."""
+    if module in ("bin_refinement", "reassemble_bins"):
+        return "--skip-checkm" not in argv
+    return module == "binning" and "--run-checkm" in argv
+
+
 def build_argv(
     comparison: Comparison,
     variant: Variant,
@@ -674,6 +685,9 @@ def build_argv(
     argv = [sys.executable, "-m", "metawrap2.cli"] + list(global_flags) + [comparison.module]
     argv += list(comparison.common_args)
     argv += list(variant.args)
+    if _scores_bins(comparison.module, argv) and NO_SCORE_CACHE not in argv:
+        # Scores reused from earlier runs would leave CheckM out of the measured cost.
+        argv.append(NO_SCORE_CACHE)
     argv += ["-o", out_dir, "-t", str(threads)]
     if comparison.module in ("assembly", "bin_refinement", "reassemble_bins"):
         argv += ["-m", str(memory_gb)]
@@ -720,13 +734,13 @@ def build_argv(
         sets = [path for path in sets if not is_refined_bins_dirname(path)]
         if not sets:
             raise RunnerError("Found no *_bins directories under %s to refine." % root)
-        # --bins instead of -A/-B/-C. Zipping the sets onto three flags truncated a six-binner
-        # variant to the three sets that sorted first.
-        if len(sets) > MAX_REFINEMENT_SETS:
+        # One -b per set instead of -A/-B/-C. Zipping the sets onto three flags truncated a
+        # six-binner variant to the three sets that sorted first.
+        if "--mw1-refinement" in argv and len(sets) > MAX_REFINEMENT_SETS:
             raise RunnerError(
-                "%s holds %d bin sets (%s) and bin_refinement consolidates at most %d, because it "
-                "scores every combination of them with CheckM (2^n-1 runs). Point --bins-from at a "
-                "variant with fewer binners, or refine in stages."
+                "%s holds %d bin sets (%s) and bin_refinement --mw1-refinement consolidates at "
+                "most %d, because it scores combinations of them with CheckM. Point --bins-from at "
+                "a variant with fewer binners, or refine in stages."
                 % (
                     root,
                     len(sets),
@@ -735,7 +749,7 @@ def build_argv(
                 )
             )
         for path in sets:
-            argv += ["--bins", path]
+            argv += ["-b", path]
         # The assembly too, when there is one: DAS Tool reads the contigs itself and will not start
         # without them. Passed to every variant so all arms get the same inputs; MetaWrap2's own
         # consolidation ignores it.
@@ -823,13 +837,11 @@ def require_env_manager() -> None:
     settings = _config.load_settings()
     if not settings.use_conda_envs:
         return
-    manager = _runner.env_manager
-    if shutil.which(manager) is None:
-        raise RunnerError(
-            "%s is not on PATH, so the tools for this comparison cannot run.\n"
-            'Add it (usually PATH="$HOME/miniforge3/bin:$PATH") or set use_conda_envs = false '
-            "under [settings] in ~/.metawrap2/config.toml." % manager
-        )
+    from .. import command as _command
+
+    _command.set_configured_env_manager(settings.env_manager)
+    if not _command.ensure_env_manager():
+        raise RunnerError(str(_command.EnvManagerMissing(_runner.env_manager, "this comparison")))
 
 
 def prepare_coassembly(

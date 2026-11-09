@@ -23,10 +23,23 @@ from __future__ import annotations
 import json
 import os
 import shutil
+from typing import Optional
 
 from . import command
 
 _STEPS_SUBDIR = os.path.join(".metawrap2", "steps")
+
+#: The stage that is running (the last one :meth:`Checkpoint.todo` let start and that has not been
+#: marked done) and the last one marked done, in this process. Read when a run stops early, to say
+#: where (see ``RUN_INCOMPLETE`` in :mod:`metawrap2.modules._common`).
+current_step: Optional[str] = None
+last_done: Optional[str] = None
+
+
+def reset_progress() -> None:
+    """Forget the stage progress, at the start of a module run."""
+    global current_step, last_done
+    current_step = last_done = None
 
 
 class Checkpoint:
@@ -58,12 +71,20 @@ class Checkpoint:
 
     def todo(self, step: str) -> bool:
         """True if *step* should run now (always, unless resuming and it already finished)."""
-        return not (self.resume and self.finished(step))
+        global current_step
+        run_now = not (self.resume and self.finished(step))
+        if run_now:
+            current_step = step
+        return run_now
 
     def done(self, step: str) -> None:
         """Record that *step* finished. Writes nothing under ``--dry-run``, where nothing ran."""
+        global current_step, last_done
         if command.runner.dry_run:
             return
+        last_done = step
+        if current_step == step:
+            current_step = None
         os.makedirs(self.dir, exist_ok=True)
         with open(self._marker(step), "w") as fh:
             json.dump({"status": "done", "dry_run": False}, fh)

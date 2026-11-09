@@ -256,6 +256,8 @@ def help_message() -> str:
         "\t%-24s memory ceiling for the whole run" % "--max-memory-gb N",
         "\t%-24s or, as a share of this machine's RAM (default 0.80)" % "--max-memory-fraction F",
         "\t%-24s stop when a filesystem is this full (default 0.70)" % "--max-disk-fraction F",
+        "\t%-24s and has no more than N GB free (default 200; 0: the fraction alone)"
+        % "--min-free-disk-gb N",
         "\t%-24s how many GPUs the run may use (0 for none)" % "--max-gpus N",
         "\t%-24s refuse to start a GPU step on a card another process holds" % "--gpu-strict",
         # Listed because it is a documented [limits] key like the others.
@@ -277,6 +279,7 @@ _LIMIT_FLAGS = {
     "--max-memory-gb": "max_memory_gb",
     "--max-memory-fraction": "max_memory_fraction",
     "--max-disk-fraction": "max_disk_fraction",
+    "--min-free-disk-gb": "min_free_disk_gb",
     "--max-gpus": "max_gpus",
     "--disk-check-interval": "disk_check_interval",
 }
@@ -439,8 +442,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
 
     mod = importlib.import_module(entry[0])
+    from . import logging as _log
+
+    _log.last_error = ""
     try:
         return int(mod.main(rest) or 0)
+    except SystemExit as exc:
+        # error() prints its banner to stdout with the rest of the run's messages. A caller that
+        # reads only stderr and the exit code still gets the reason, on one line.
+        if exc.code not in (0, None) and _log.last_error:
+            first = _log.last_error.strip().splitlines()[0]
+            print("metawrap2 %s: error: %s" % (name, first), file=sys.stderr)
+        raise
     except (ConfigError, EnvManagerMissing) as exc:
         # Config errors and a missing mamba on PATH are user errors: print the message, not a
         # traceback.

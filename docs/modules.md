@@ -185,9 +185,9 @@ Other options:
 - `--device {cpu,cuda,cuda:N,auto}` - where the learned binners train. Default cpu, because GPU and
   CPU runs of the same seeded network can give different MAGs. `auto` uses a GPU if that binner's
   torch sees one and falls back to the CPU otherwise. `--preset deep` defaults to cuda; an explicit
-  `--device` overrides it. Peak VRAM is recorded: COMEBin 5.71 GB (17k and 63k contigs), SemiBin2
-  0.41 GB on 16,936 contigs and 2.75 GB on 63,376, VAMB 0.56 GB on 16,527, so an 8 GB card runs all
-  three on that data. See [Hardware](hardware.md).
+  `--device` overrides it. Peak VRAM is recorded: COMEBin 5.71 GiB (two skin samples, four gold assemblies), SemiBin2
+  0.41-0.68 GiB on two CAMI2 skin samples and 2.75 GiB on a 36-sample water co-assembly, VAMB
+  0.56 GiB, so an 8 GB card runs all three on that data. See [Hardware](hardware.md).
 
   `cuda:N` pins the step to card N with `CUDA_VISIBLE_DEVICES`. Before each GPU step the card is
   checked with `nvidia-smi` and a line gives the card, its utilisation, its free memory and any
@@ -299,27 +299,70 @@ which also holds fairy.
 Consolidates multiple bin sets into one refined set, written to `metawrap_<c>_<x>_bins` (named for
 the `-c`/`-x` thresholds).
 
+```bash
+metawrap2 bin_refinement -o BIN_REFINEMENT -t 32 -c 70 -x 10 \
+    -b INITIAL_BINNING/metabat2_bins,INITIAL_BINNING/semibin2_bins,INITIAL_BINNING/comebin_bins
+```
+
+- `-b/--bin-sets DIR1,DIR2,...` - the bin sets, as folders of bins from the same assembly:
+  comma-separated, or `-b` repeated once per folder. The order names them `binsA`, `binsB` and so
+  on. The default consolidator and `dastool` take any number of sets, `--mw1-refinement` 2 to 6. A
+  single set is not consolidated, and `-c`/`-x` are applied to it. A folder whose name contains a
+  comma can be given with `-b` on its own.
+- `-c`/`-x` - minimum completeness and maximum contamination (default 70 and 10). With the default
+  consolidator they are the target it selects for, not a filter applied to its output: a run at
+  `-c 90 -x 5` chooses different versions of the bins from a run at 70/10. For near-complete
+  genomes, run with `-c 90 -x 5` instead of filtering a 70/10 run. This gave more clean VHQ MAGs
+  (≥90%, ≤5%, passes GUNC) than the 70/10 run on all six benchmark datasets: 153 against 143 on a
+  Hadza gut sample, 63 against 61 on a faecal-transplant series and 247 against 242 on CAMI2 oral
+  ([Benchmarks](benchmarks.md#consolidators)). With `--consolidator dastool`, DAS Tool does not
+  receive them; they filter the consolidated set after it is re-scored.
 - `--consolidator` - how the sets are combined:
-    - `metawrap` (default, metaWRAP's method) hybridises every combination of the input sets with
-      Binning_refiner and asks CheckM2 which version of each bin to keep: CheckM2 on 2^n-1 sets. On the
-      `metabat2_maxbin2` arm of `cami2_gi`: 10.86 CPU-hours, 70 final bins at `-c 70 -x 10`.
+    - `metawrap2` (default) adds unions and differences of overlapping input bins to the
+      Binning_refiner intersections. Two input bins are linked when they share contigs; for each
+      group of bins all linked to each other (a clique) it builds their union and the difference of
+      each bin and the others. Every candidate is scored with CheckM2, and candidates are picked from
+      the highest score (completeness − W × contamination) down with no contig in two bins. A union
+      or difference is kept only if it outscores the greedy packing of the original bins and
+      intersections it would block. Unions can hold more of a genome than any one input bin. Needs
+      no `-a` and no extra env. Candidates are scored as the bin sets `bins_candidates_intersection`,
+      `bins_candidates_union` and `bins_candidates_difference`; the candidate pool is in
+      `work_files/consolidation_pool.json`, and which candidate became each final bin in
+      `work_files/consolidated_bins.tsv`. On the consolidator benchmark it recovered 267 clean HQ
+      MAGs against 230 for metaWRAP 1.3.0 and 260 for Binette on the Hadza sample, and 115 against
+      99 and 104 on the faecal-transplant series. On CAMI2 it used 26.7-51.7 CPU-hours, less than
+      metaWRAP 1.3.0 (48.6-72.9) and 12-17x Binette (2.2-3.1), which scores candidates in process
+      ([Benchmarks](benchmarks.md#consolidators)).
     - `dastool` scores input bins once on single-copy genes and aggregates in one pass. Needs
       `-a/--assembly` and its own env (`metawrap2 install-env binqc`; no database).
       `--dastool-score` is its quality floor (default 0.5); `work_files/dastool_bin_names.tsv` maps
       renumbered bins to DAS_Tool's names, which show the input set.
 
-  Both feed the same CheckM re-scoring, `-c`/`-x` cut, plots, layout and GUNC. The `consolidator`
-  comparison (`metawrap2 benchmark run cami2_gi consolidator`) prefers DAS_Tool, which is 7× cheaper,
-  on a tie. See [Benchmarks](benchmarks.md#5-refinement).
+  Both share the plots, layout and GUNC. The `consolidator` comparison
+  (`metawrap2 benchmark run cami2_gi consolidator`) prefers DAS_Tool, which is 7× cheaper, on a
+  tie. See [Benchmarks](benchmarks.md#5-refinement).
+- `--mw1-refinement` - metaWRAP 1's method, the default up to 2.1.5. Binning_refiner hybridises
+  every combination of the input sets, CheckM2 scores each of the 2^n-1 hybrid sets, and the sets
+  are consolidated two at a time: for each bin, the best-scoring version among the bins sharing at
+  least 80% of its length is kept. Every output bin is an input bin or an intersection of input
+  bins. With `--checkm1` it returns the same bins as metaWRAP 1.3.0's `bin_refinement`.
+  `--skip-checkm`, `--skip-refinement`, `--skip-consolidation` and the `--refine-combinations`,
+  `--keep-ambiguous` and `--remove-ambiguous` options belong to this method; given without
+  `--consolidator`, they run it.
+- `--contamination-weight W` - the weight in the default consolidator's selection score
+  completeness − W × contamination (default 5). Higher values favour cleaner, less complete bins.
+  Not used by `--mw1-refinement` or `dastool`.
 - `--skip-gunc` - GUNC scores the final bins for chimerism and adds `gunc_css`/`gunc_pass` to their
   `.stats.tsv`; bins are annotated, never dropped. Skipping avoids its 6.7 GB database and 3.20
   CPU-hours on a 60-bin set (~32% on top of refinement). On the `metabat2_concoct` arm, 4 of 60 final
   bins were chimeric by GUNC but passed CheckM at `-c 70 -x 10`.
-- `--score-everything` - with `metawrap`, bins outside 200 kb to 20 Mb are recorded as 0% complete /
-  100% contaminated without running CheckM (the 10,738 of 18,490 scored bins passing 70/10 range
-  from 0.99 to 6.66 Mb). This flag scores them anyway. Bins identical to one already scored (390 of
+- `--score-everything` - bins outside 200 kb to 20 Mb are recorded as 0%
+  complete / 100% contaminated without running CheckM (the 10,738 of 18,490 scored bins passing
+  70/10 range from 0.99 to 6.66 Mb). This flag scores them anyway. Bins identical to one already scored (390 of
   1,230 in a three-binner run) reuse the cached score in `work_files`, also across `--resume`.
-- `--checkm-jobs N` - with `metawrap`, how many bin sets are scored at once (default 0: as many as
+- `--no-score-cache` - score every bin again instead of reusing scores from earlier runs (see
+  [Score cache](usage.md#score-cache)).
+- `--checkm-jobs N` - how many bin sets are scored at once (default 0: as many as
   memory allows, at 24 GB per CheckM2 call or, with `--checkm1`, 16 GB per CheckM1 call on the
   reduced tree and 40 GB with `--full-tree`, and at most one per thread).
   Threads and memory are split evenly between the calls. pplacer's memory is per process, ~34 GB for

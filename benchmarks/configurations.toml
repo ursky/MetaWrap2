@@ -343,6 +343,9 @@ bwa-identical depth is required and the memory is there."""
 [refinement_completeness]
 module = "bin_refinement"
 question = "Where should the default completeness threshold sit?"
+# Measured with metaWRAP 1's consolidation, the default when this comparison was run; pinned so the
+# arms keep measuring the same thing now that the default consolidator has changed.
+common_args = ["--mw1-refinement"]
 metrics = ["bins_near_complete", "bins_high_quality", "amber_f1_bp"]
 
 [[refinement_completeness.variants]]
@@ -369,24 +372,28 @@ note = "stricter contamination; fewer bins, and the question is whether the ones
 # --------------------------------------------------------------------------------------------
 [consolidator]
 module = "bin_refinement"
-question = "Is hybridising every bin-set combination worth what it costs over DAS_Tool?"
-# The accuracy metrics plus the cost, since this comparison is mostly about cost. MetaWrap2 builds
-# every combination of the input sets and runs CheckM on all 2^n-1 of them to pick the best
-# version of each bin; DAS_Tool scores the input bins once on single-copy genes and aggregates. On
-# a 3-binner arm that is four Binning_refiner runs and four CheckM runs against one prodigal pass,
-# so DAS_Tool is preferable on a tie in accuracy and possibly on a small loss.
+question = "Which consolidator recovers the most genomes, and at what cost?"
+# The accuracy metrics plus the cost. metaWRAP 1's method builds every combination of the input
+# sets and runs CheckM on all 2^n-1 of them to pick the best version of each bin; the default adds
+# union and difference candidates of overlapping bins and scores those too; DAS_Tool scores the
+# input bins once on single-copy genes and aggregates.
 metrics = ["bins_near_complete", "bins_high_quality", "amber_f1_bp"]
 
 [[consolidator.variants]]
-name = "metawrap"
-args = ["--consolidator", "metawrap"]
+name = "metawrap2"
+args = ["--consolidator", "metawrap2"]
 default = true
-note = """the incumbent, and the default because it is the incumbent - not because it has been \
-shown to win. Measured on cami2_gi 2026-10-06 over one sample's three per-sample bin sets: 4.52 \
-cpu-hours, 13 bins kept at 70/10. DAS_Tool on the identical input kept 10 for 0.62 - so this arm buys \
-3 more genomes for 7.3x the compute, which is the same shape as every other hybridise-everything \
-result in this repo. It stays the default pending a multi-sample confirmation; the single-sample \
-margin is three genomes and that is not enough to move a default on."""
+note = """the default from 2.1.6: intersection, union and difference candidates over cliques of \
+overlapping bins (edge at 10% shared contigs, lengths within 4x, cliques of up to 3), contamination \
+weight 5 and the lookahead guard."""
+
+[[consolidator.variants]]
+name = "metawrap"
+args = ["--mw1-refinement"]
+note = """metaWRAP 1's method, the default up to 2.1.5. Measured on cami2_gi 2026-10-06 over one \
+sample's three per-sample bin sets: 4.52 cpu-hours, 13 bins kept at 70/10. DAS_Tool on the \
+identical input kept 10 for 0.62, so this arm buys 3 more genomes for 7.3x the compute. Named \
+metawrap so its results stay comparable with runs recorded before the default changed."""
 
 [[consolidator.variants]]
 name = "dastool"

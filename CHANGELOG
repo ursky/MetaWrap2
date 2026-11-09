@@ -1,3 +1,131 @@
+MetaWrap2 v=2.1.6
+	The Slurm executor (merged after the 2.1.5 tag), a new default consolidator for bin_refinement
+		(metaWRAP 1's method kept as --mw1-refinement), a consolidator benchmark of bin_refinement on six
+		datasets, and corrections to benchmark descriptions in the documentation.
+	New - Slurm executor for run and cohort, contributed by Matthew Nguyen (pull request #8)
+		`--executor slurm` submits each step as one sbatch job and waits for every job of a stage before
+			the next stage. Job options come from [slurm] and [slurm.modules.<module>] in metawrap2.toml
+			and from --slurm-partition, --slurm-account, --slurm-time, --slurm-qos, --slurm-constraint,
+			--slurm-gres and --slurm-gpus. -t and -m set each job's CPUs and memory, uncapped by the login
+			node's [limits]; -j sets how many jobs of a stage are queued at once.
+		Job IDs are recorded in the manifest before the driver waits. --resume reconnects to jobs still
+			queued or running, keeps jobs that finished, and resubmits steps whose jobs failed. Ctrl-C
+			cancels the running jobs. A job fails unless it ends COMPLETED with exit code 0; a preempted
+			job that is requeued is followed to its end. squeue and sacct errors are retried for 30 min.
+		Wall time, CPU time and peak memory come from sacct, for the manifest and provenance.txt. A
+			binning step on --device cuda requests gres gpu:1. --dry-run prints each sbatch command.
+	New - tests for global flags in run and cohort steps, contributed by Matthew Nguyen (pull request #7)
+		They cover each budget flag, a zero heartbeat, both entry points, and the flags' place before the
+			module name in a step's command. The fix they test shipped in 2.1.5.
+	New - bin scores are reused across runs
+		bin_refinement, score, reassemble_bins and binning --run-checkm look up each bin in a shared cache
+			keyed by its sequences and by the scorer, tool version, database and translation-table setting.
+			Default ~/.metawrap2/score_cache; [settings] score_cache_dir moves it ("" turns it off);
+			--no-score-cache turns it off for one run. An identical candidate pool rescored in 9 s instead
+			of 1,934 s. Benchmark arms run with --no-score-cache so their measured cost includes CheckM.
+	Changed - default consolidator of bin_refinement; --mw1-refinement keeps metaWRAP 1's method
+		--consolidator {metawrap2,dastool}, default metawrap2. It adds unions and differences of overlapping
+			input bins to the Binning_refiner intersections. Unions and differences are built over cliques
+			of the bin-overlap graph (bins that all share contigs with each other), as in Binette; unions as
+			candidates follow MAGScoT. Candidates are ranked in one list by completeness - W x contamination
+			and a union or difference is kept only if it outscores the greedy packing of the original bins
+			and intersections it would block. Needs no -a and no extra environment. The candidate pool is
+			in work_files/consolidation_pool.json and each final bin's origin in
+			work_files/consolidated_bins.tsv; candidates are scored in bins_candidates_intersection,
+			bins_candidates_union and bins_candidates_difference.
+		On the consolidator benchmark: most clean HQ MAGs on Hadza (267), the faecal-transplant series
+			(115), CAMI2 oral and CAMI3 toy, one or two fewer than the best arm on CAMI2 skin and
+			gastrointestinal; mean rank 1.50 over six datasets, against 2.67 for Binette and 3.00 for
+			metaWRAP 1.3.0. On CAMI2 26.7-51.7 CPU-hours, less than metaWRAP 1.3.0 (48.6-72.9) and 12-17x
+			Binette (2.2-3.1).
+		-c/-x are the target the default consolidator selects for, not a filter on its output. Run
+			-c 90 -x 5 for near-complete genomes: 153 clean VHQ MAGs against 143 from the 70/10 run on
+			Hadza, 63 against 61 on the faecal-transplant series, 247 against 242 on CAMI2 oral. With
+			--consolidator dastool, -c/-x filter the consolidated set after re-scoring; DAS Tool does not
+			receive them.
+		--mw1-refinement runs metaWRAP 1's method (Binning_refiner intersections and pairwise consolidation
+			of bins overlapping by 80%), the 2.1.5 default; with --checkm1 it returns the same bins as
+			metaWRAP 1.3.0. --skip-checkm, --skip-refinement, --skip-consolidation, --refine-combinations,
+			--keep-ambiguous and --remove-ambiguous given without a consolidator run it.
+		End-to-end runtimes and MAG counts in docs/benchmarks.md were measured with the 2.1.5 default,
+			except --preset deep on Hadza and the faecal-transplant series, now 267 clean MAGs (11.1 h)
+			and 115 (4.8 h), against 250 (9.5 h) and 111 (4.7 h) with the 2.1.5 default; the added wall
+			time is estimated from partly cached runs.
+	New - bin_refinement --contamination-weight W
+		Default 5. Sets W in the default consolidator's selection score; not used by --mw1-refinement or
+			--consolidator dastool.
+	New - bin_refinement -b/--bin-sets DIR1,DIR2,...
+		Comma-separated, or -b repeated once per folder. Any number of sets for the default consolidator
+			and dastool; --mw1-refinement takes 2 to 6. One set is not consolidated; -c/-x are applied to
+			it. -A to -F still work but are no longer documented, and cannot be mixed with -b.
+	Fixed - the disk ceiling no longer stops a run on a filesystem with more than min_free_disk_gb free
+		[limits] max_disk_fraction (default 0.7) is a share of the whole filesystem, so on a large
+			filesystem a run could stop with terabytes free. A filesystem over the fraction now stops a
+			run only when it also has less than [limits] min_free_disk_gb free (default 200; global
+			--min-free-disk-gb N for one run). 0 restores the fraction-only ceiling.
+	Fixed - a run that stops early marks its output folder RUN_INCOMPLETE
+		Written in -o when a module starts and removed when it finishes. After a stop (disk ceiling, error,
+			signal) it names the step that stopped, the last finished step, the reason and --resume, so
+			a partial output, such as some of bin_refinement's bin folders, is not read as a finished run.
+			The exit code is 1 after an error and 130 (or 128 + the signal number) after an interrupt.
+	Fixed - mamba or conda not on PATH stopped every tool step
+		Non-login shells and batch jobs often have no conda on PATH. When mamba is not on PATH, MetaWrap2
+			now looks at [settings] env_manager (a path), $MAMBA_EXE, $CONDA_EXE, then bin/ and condabin/
+			under ~/miniforge3, ~/mambaforge, ~/miniconda3, ~/anaconda3 and ~/micromamba. If none is found
+			the error lists where it looked and what to set.
+	Fixed - a module that stops on an error prints the error on stderr
+		Besides the log, "metawrap2 <module>: error: <first line of the message>" goes to stderr, so a
+			caller sees why, for example, score into an existing output directory refused to start.
+	Fixed - score matched bins by contig names only
+		Genomes from different sources with the same contig names shared one cached score. The per-run key
+			now pairs each contig name with a hash of its sequence.
+	Fixed - CONTAMINATION_WEIGHT was defined in constants.py and again in scripts/choose_best_bin.py
+	Changed - score into an existing output directory explains --resume, --force and a new -o
+	New - consolidator benchmark in docs/benchmarks.md
+		Seven arms on the same filtered metaBAT2 + SemiBin2 + COMEBin bin sets and assembly: the 2.1.6
+			default, --consolidator dastool, metaWRAP 1.3.0 bin_refinement, DAS Tool 1.1.7, MAGScoT,
+			Binette 1.2.1 and UniteM 1.2.6. Datasets: CAMI2 gastrointestinal, oral and skin and CAMI3 toy
+			(pooled gold assemblies), Hadza (ERR7745335) and a faecal-transplant series (PRJNA701961).
+			All outputs rescored with CheckM2 + GUNC + MIMAG.
+		Mean rank by clean HQ MAGs: the 2.1.6 default 1.50, Binette 2.67, metaWRAP 1.3.0 3.00, UniteM
+			3.67, MAGScoT 3.83, DAS Tool 6.00, --consolidator dastool 6.83. Head to head the default won
+			4-1-1 against metaWRAP 1.3.0, 5-1-0 against Binette and MAGScoT, 6-0-0 against the others.
+		In the 70/10 runs the default's share of final bins failing GUNC is lower than Binette's,
+			MAGScoT's (at its defaults, and its 70/10 run on Hadza), UniteM's and DAS Tool's on every
+			dataset, and the lowest of all arms on CAMI2 oral, CAMI3 toy, Hadza and the faecal-transplant
+			series; metaWRAP 1.3.0 is lower on CAMI2 gastrointestinal and skin. At 90/5 MAGScoT is cleaner
+			on CAMI2 gastrointestinal (0.6% against 1.7%) and skin (2.6% against 4.9%) at comparable bin
+			counts; the default recovers 11 and 15 more clean VHQ MAGs there.
+		Near-complete table: every tool also run at 90/5 in its own units, each cell the better of its
+			runs. The default at 90/5: 173, 247, 193, 233, 153 and 63 clean VHQ MAGs (CAMI2 gi, oral,
+			skin, CAMI3 toy, Hadza, faecal transplant); most on faecal transplant, CAMI3 toy and oral,
+			tied with Binette on gi, second to Binette on Hadza (155) and skin (196).
+		Unions and differences: turned off, the default lost 9 clean HQ MAGs on Hadza, 4 on the
+			faecal-transplant series, 1-3 on CAMI2 and none on CAMI3 toy.
+		Every metaWRAP 1.3.0 output bin is a subset of one input bin (all six datasets). MAGScoT and
+			UniteM return the most bins but many fail GUNC (29 and 82 on CAMI3 toy).
+		--consolidator dastool costs 2.6-5.5x the CPU-hours of DAS Tool alone: MetaWrap2 also scores the
+			consolidated set with CheckM (CheckM1 on the full tree in this benchmark). It recovered as many
+			or fewer clean HQ MAGs, 169 against 180 on Hadza.
+		Cost: the default used 26.7-51.7 CPU-hours on CAMI2, against 2.2-3.1 for Binette, which runs gene
+			calling and DIAMOND once per assembly and sums per-contig CheckM2 features per candidate
+			(about 17x faster per candidate).
+	Fixed - benchmark descriptions in README.md, docs/benchmarks.md, docs/hardware.md, docs/index.md,
+		docs/modules.md and the 2.1.4 release notes
+		On the CAMI gold assemblies and the 50-sample gut and 36-sample water datasets, the metaWRAP 1 arm
+			is metaWRAP 1.3.0's bin_refinement over metaBAT2, MaxBin2 and CONCOCT bins made through
+			MetaWrap2, with MetaWrap2's depth table; on Hadza and the faecal-transplant series metaWRAP
+			1.3.0 ran its own binning and refinement.
+		CAMI2 gastrointestinal end to end: the MetaWrap2 arms were scored with CheckM1 + GUNC and
+			metaWRAP 1 with CheckM2 + GUNC.
+		Peak VRAM values are GiB. SemiBin2's 2.75 GiB peak is from the water co-assembly; the two CAMI2
+			skin samples peaked at 0.41 and 0.68 GiB.
+		VAMB on a GPU took 4.9 CPU-hours (0.29 h wall), not 4.9 GPU-hours.
+		fastp keeps 0.83% more bases than Trim Galore on CAMI2 gastrointestinal, not 1.0%.
+	Changed - PLANNED_FEATURES.md lists in-process CheckM2 scoring of candidates, the untried parts of
+		Binette and MAGScoT, and Binette and new-default arms in the benchmark registry; Slurm is
+		removed from the planned executors.
+
 MetaWrap2 v=2.1.5
 	Binning presets are now `default` and `deep`, fixes from a second new-user test of 2.1.4, a
 		shorter README, and CI fixes.
@@ -13,8 +141,6 @@ MetaWrap2 v=2.1.5
 			typed before the subcommand (--max-disk-fraction, --max-threads, --max-memory-gb, --max-gpus,
 			--skip-space-check, --skip-validation, --verbose-logs, --heartbeat-seconds, --gpu-strict) now
 			reach every step, which still gets its own share of threads and memory. Reported in issue #6.
-		Tests from pull request #7 (Matthew Nguyen) cover each budget flag, a zero heartbeat, both
-			entry points, and the flags' place before the module name in a step's command.
 	Fixed - quickstart and install-env failing intermittently on parallel builds
 		Environments built at once share conda's package cache, and concurrent writes left truncated
 			channel indexes ("Unable to read repo solv file ... unexpected EOF") or missing `.conda` and
@@ -47,18 +173,6 @@ MetaWrap2 v=2.1.5
 		Optional only when a flag allows skipping the database, named in the label. check viruses fails
 			without GENOMAD_DB. check <module> lists only that module's databases; doctor states its scope
 			(--all for every module) and counts what it prints.
-	New - Slurm executor for run and cohort, contributed by Matthew Nguyen (pull request #8)
-		`--executor slurm` submits each step as one sbatch job and waits for every job of a stage before
-			the next stage. Job options come from [slurm] and [slurm.modules.<module>] in metawrap2.toml
-			and from --slurm-partition, --slurm-account, --slurm-time, --slurm-qos, --slurm-constraint,
-			--slurm-gres and --slurm-gpus. -t and -m set each job's CPUs and memory, uncapped by the login
-			node's [limits]; -j sets how many jobs of a stage are queued at once.
-		Job IDs are recorded in the manifest before the driver waits. --resume reconnects to jobs still
-			queued or running, keeps jobs that finished, and resubmits steps whose jobs failed. Ctrl-C
-			cancels the running jobs. A job fails unless it ends COMPLETED with exit code 0; a preempted
-			job that is requeued is followed to its end. squeue and sacct errors are retried for 30 min.
-		Wall time, CPU time and peak memory come from sacct, for the manifest and provenance.txt. A
-			binning step on --device cuda requests gres gpu:1. --dry-run prints each sbatch command.
 	New - run and cohort check databases before the first step
 	Fixed - --dry-run wrote step markers that --resume trusted
 		Markers now record whether they were written by a dry run; dry runs write none, decompress

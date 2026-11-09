@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from .. import __version__
 from .. import aligners as _aligners
+from .. import checkpoint as _checkpoint
 from .. import command as _cmd
 from .. import history as _history
 from .. import interrupt as _interrupt
@@ -42,6 +43,12 @@ _active_lock: Optional[_runlock.RunLock] = None
 
 #: The disk high-water monitor for the current run, held here for the same reason as the lock.
 _active_disk_monitor: Optional[_limits.DiskMonitor] = None
+
+#: Written at the top of a module's output folder when the run starts, and removed when it finishes.
+#: While it exists the folder is incomplete: a run that stopped early (an error, the disk ceiling, a
+#: signal) leaves it, saying which step stopped and why, so a tool that reads ``metawrap_*_bins``
+#: or a stats table can tell an unfinished run from one that found nothing.
+INCOMPLETE_MARKER = "RUN_INCOMPLETE"
 
 #: The GPU memory sampler for the current run, held here for the same reason.
 #:
@@ -129,7 +136,7 @@ def _require_env_manager(env: str) -> None:
     """
     if runner.dry_run:
         return
-    if shutil.which(runner.env_manager) is None:
+    if not _cmd.ensure_env_manager():
         error(str(_cmd.EnvManagerMissing(runner.env_manager, env)))
 
 
@@ -141,6 +148,7 @@ def env_for(module: str, settings: Settings) -> Optional[str]:
     """
     if not settings.use_conda_envs:
         return None
+    _cmd.set_configured_env_manager(settings.env_manager)
     env = MODULE_ENVS.get(module)
     if env:
         _require_env_manager(env)
@@ -318,6 +326,37 @@ def scorer_preflight(args, settings: Settings) -> Optional[str]:
     return optional_env_for("checkm2", settings, "CheckM2, which scores bins unless --checkm1")
 
 
+def add_score_cache_arg(p) -> None:
+    """``--no-score-cache``, for a module that scores bins with CheckM."""
+    p.add_argument(
+        "--no-score-cache",
+        dest="score_cache",
+        action="store_false",
+        help="don't reuse or add to the bin scores kept between runs ([settings] "
+        "score_cache_dir). This run's own score cache, used by --resume, is kept",
+    )
+
+
+def open_score_cache(
+    args, settings: Settings, scorer: str, ttable: Optional[int] = None, env: Optional[str] = None
+):
+    """The score cache shared between runs for *scorer*, or None if this run does not use it.
+
+    *env* is the conda env the scorer runs in. See :func:`metawrap2.scorecache.open_for_run`.
+    """
+    from .. import scorecache as _scorecache
+
+    return _scorecache.open_for_run(
+        settings.score_cache_dir,
+        settings.databases,
+        enabled=getattr(args, "score_cache", True),
+        scorer=scorer,
+        ttable=ttable,
+        env=env,
+        say=comm,
+    )
+
+
 def ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
@@ -330,13 +369,21 @@ def _describe_overrides(overrides: dict) -> str:
 
 
 def start_run(
-    module: str, args, env: Optional[str], settings: Settings, inputs: List[str]
+    module: str,
+    args,
+    env: Optional[str],
+    settings: Settings,
+    inputs: List[str],
+    existing_output_hint: Optional[str] = None,
 ) -> RunRecorder:
     """Begin provenance recording for a module run and wire it into the runner.
 
     ``inputs`` are the paths this run reads (assembly/bins/reads); any that live inside a
     previous MetaWrap2 output dir let provenance propagate. Call :func:`finish_run` in a
     ``finally`` so even a failed run leaves a record.
+
+    *existing_output_hint* replaces the message for an output directory that already holds a run,
+    for a module whose ``--resume`` needs explaining. ``%s`` in it is the output directory.
     """
     output = getattr(args, "output", None)
     # Decided before this run writes its own log into the folder.
@@ -352,8 +399,12 @@ def start_run(
         and not _cmd.runner.dry_run
     ):
         error(
-            "Output directory '%s' already contains a MetaWrap2 run. Re-run with "
-            "--resume to continue it, --force to overwrite, or choose a new -o." % output
+            (
+                existing_output_hint
+                or "Output directory '%s' already contains a MetaWrap2 run. Re-run with "
+                "--resume to continue it, --force to overwrite, or choose a new -o."
+            )
+            % output
         )
 
     # A scheduler's SIGTERM (wall clock, memory limit) or a dropped SSH session's SIGHUP unwinds
@@ -423,6 +474,8 @@ def start_run(
     _warn_odd_paths(inputs + ([output] if output else []))
 
     if output and not _cmd.runner.dry_run:
+        _checkpoint.reset_progress()
+        _write_incomplete(output, module, None)
         # Record the environment before any tool runs, so a run that fails in its first command
         # still has it.
         rec.record_environment(output)
@@ -472,7 +525,56 @@ _OWN_FILES = (
     "run.stderr",
     _runlock.LOCK_NAME,
     ".metawrap2",
+    INCOMPLETE_MARKER,
 )
+
+
+def _stop_reason(status: str) -> str:
+    """Why the run is leaving early, from the exception unwinding and what the run recorded."""
+    monitor = _active_disk_monitor
+    if monitor is not None and monitor.tripped is not None:
+        return "the disk ceiling was reached: %s" % monitor.tripped.describe()
+    exc = sys.exc_info()[1]
+    if isinstance(exc, _interrupt.Stopped):
+        return str(exc)
+    if isinstance(exc, KeyboardInterrupt):
+        return "interrupted (Ctrl-C)"
+    if isinstance(exc, SystemExit):
+        return _log.last_error or "exited with code %s" % exc.code
+    if exc is not None:
+        text = str(exc).strip()
+        return "%s: %s" % (type(exc).__name__, text) if text else type(exc).__name__
+    return status
+
+
+def _write_incomplete(output: str, module: str, status: Optional[str]) -> None:
+    """Write :data:`INCOMPLETE_MARKER` in *output*: running (*status* None) or stopped early."""
+    import datetime
+
+    now = datetime.datetime.now(datetime.timezone.utc).astimezone().isoformat(timespec="seconds")
+    if status is None:
+        lines = [
+            "metawrap2 %s started at %s and has not finished." % (module, now),
+            "Until this file is removed, the results in this folder are incomplete.",
+        ]
+    else:
+        step = _checkpoint.current_step
+        done = _checkpoint.last_done
+        reason = " ".join(_stop_reason(status).split())
+        lines = [
+            "metawrap2 %s stopped before finishing (%s) at %s." % (module, status, now),
+            "Step: %s" % (step or ("between steps" if done else "setup")),
+            "Last finished step: %s" % (done or "none"),
+            "Reason: %s" % reason,
+            "The results in this folder are incomplete; do not read them as a finished run.",
+            "Re-run the same command with --resume to continue from the last finished step.",
+        ]
+    try:
+        with open(os.path.join(output, INCOMPLETE_MARKER), "w") as fh:
+            fh.write("\n".join(lines) + "\n")
+    except OSError:
+        pass  # a full or read-only disk must not hide the error that stopped the run
+
 
 #: The provenance files ``finish_run`` writes, also under ``--dry-run``.
 _RECORD_FILES = ("run_config.json", "run_commands.txt", "provenance.txt")
@@ -549,8 +651,9 @@ def _start_disk_monitor(
         warning(
             "Stopping %s: %s. The run is stopped so it does not fill the filesystem. Free some "
             "space (or set scratch_dir under [settings] to a filesystem with more space) and "
-            "re-run with --resume. To allow a fuller disk, raise [limits] "
-            "max_disk_fraction." % (module, state.describe())
+            "re-run with --resume. To allow a fuller disk, raise [limits] max_disk_fraction "
+            "(the fraction full) or lower [limits] min_free_disk_gb (the free space kept)."
+            % (module, state.describe())
         )
 
     global _active_disk_monitor
@@ -616,6 +719,14 @@ def finish_run(
     """
     if status is None:
         status = _outcome_from_context()
+    if output_dir and not _cmd.runner.dry_run and os.path.isdir(output_dir):
+        if status == _history.COMPLETED:
+            try:
+                os.remove(os.path.join(output_dir, INCOMPLETE_MARKER))
+            except OSError:
+                pass
+        else:
+            _write_incomplete(output_dir, rec.module, status)
     try:
         # A dry run records its plan, but never over the record of a run that did the work.
         if not _cmd.runner.dry_run:
@@ -1068,9 +1179,10 @@ def check_disk_space(module: str, settings: Settings, inputs: List[str], output_
     under_ceiling, ceiling_message = _limits.check_ceiling(targets, budget)
     if not under_ceiling:
         error(
-            "Not starting %s: %s\nThis is the [limits] max_disk_fraction ceiling, checked "
-            "against measured free space. Free some space, set scratch_dir to a filesystem "
-            "with more space, or raise max_disk_fraction." % (module, ceiling_message)
+            "Not starting %s: %s\nThis is the [limits] disk ceiling (max_disk_fraction full "
+            "with no more than min_free_disk_gb free), checked against measured free space. "
+            "Free some space, set scratch_dir to a filesystem with more space, raise "
+            "max_disk_fraction or lower min_free_disk_gb." % (module, ceiling_message)
         )
 
     ok, message = _scratch.check_space(module, inputs, targets)

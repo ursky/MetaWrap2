@@ -146,7 +146,7 @@ def test_the_driver_defaults_to_the_limits_budget(tmp_path, monkeypatch, capsys)
 
 
 def _refinement_bin_sets(argv):
-    return [argv[i + 1] for i, token in enumerate(argv) if token == "--bins"]
+    return [argv[i + 1] for i, token in enumerate(argv) if token == "-b"]
 
 
 def test_refinement_inputs_follow_the_selected_binners(tmp_path):

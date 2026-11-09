@@ -13,7 +13,7 @@ MetaWrap2 is the successor to the widely used and cited [metaWRAP](https://githu
 ## Why MetaWrap2
 
 - **More genomes.** `--preset deep` recovers more near-complete genomes than metaWRAP 1 on every
-  dataset tested: 23% to 95% more on CAMI2 and CAMI3, and 8% to 58% more clean MAGs on four real
+  dataset tested: 23% to 95% more on CAMI2 and CAMI3, and 8% to 69% more clean MAGs on four real
   datasets.
 - **Faster.** On the metaWRAP 1 paper's own gut samples the default recovers 17% more clean genomes
   in 1.5 hours instead of 36.5 hours. These speed gains become even more prominent with large samples or multi-sample co-assemblies.
@@ -66,6 +66,8 @@ on the catalogue, the bins or the assemblies.
 
 Each pipeline bins the dataset's gold assembly, and AMBER compares every bin with the known
 contig-to-genome answer, so completeness and contamination are measured instead of estimated.
+The metaWRAP 1 column is metaWRAP 1.3.0's refinement of metaBAT2, MaxBin2 and CONCOCT bins made
+through MetaWrap2.
 
 ![Synthetic communities: CAMI2 and CAMI3](docs/figures/synthetic_benchmarks.png)
 
@@ -80,7 +82,8 @@ contig-to-genome answer, so completeness and contamination are measured instead 
 
 Four datasets: the metaWRAP 1 paper's 50 gut and 36 water samples, one deeply sequenced gut
 sample (Hadza) and a three-sample faecal-transplant series. Every final bin set is scored with
-CheckM2 and GUNC.
+CheckM2 and GUNC. On gut and water the metaWRAP 1 row is metaWRAP 1.3.0's refinement of bins made
+through MetaWrap2; on the other two metaWRAP 1.3.0 ran its own binning and refinement.
 
 ![Real samples](docs/figures/real_samples_binning.png)
 
@@ -88,10 +91,16 @@ CheckM2 and GUNC.
 |---|---:|---:|---:|---:|
 | metaWRAP 1 | 94 (36.5 h) | 183 (98.5 h) | 158 (15.4 h) | 72 (5.0 h) |
 | MetaWrap2 default | 110 (1.5 h) | 184 (2.7 h) | 207 (3.0 h) | 78 (2.2 h) |
-| MetaWrap2 `deep` | **125** (6.4 h) | **197** (13.3 h) | **250** (9.5 h) | **111** (4.7 h) |
+| MetaWrap2 `deep` | **125** (6.4 h) | **197** (13.3 h) | **267** (11.1 h) | **115** (4.8 h) |
 
 A clean MAG is ≥70% complete, ≤10% contaminated and passes GUNC. Wall-clock time is binning plus
 refinement, with SemiBin2 and COMEBin on a GPU.
+
+The `deep` results on the single sample and the three-sample series use the 2.1.6 default
+consolidator: the same `deep` bin sets were consolidated again, and its extra refinement time is
+estimated from partly cached runs. The other cells, and the CAMI table, were measured with the
+2.1.5 consolidator, now `--mw1-refinement`. The consolidator comparison is in
+[Benchmarks](docs/benchmarks.md#consolidators).
 
 - The default is faster than metaWRAP 1 everywhere and recovers more genomes on CAMI2 and on all
   four real datasets. It recovers fewer near-complete bins on CAMI3 (161 against 175) and on the
@@ -113,7 +122,7 @@ are in [docs/benchmarks.md](docs/benchmarks.md).
 | | `nonpareil` | How much of each sample's diversity was sequenced, and whether samples are comparable |
 | Genomes | `binning` | metaBAT2, MaxBin2, CONCOCT, SemiBin2, VAMB and COMEBin; long-read and multi-split modes |
 | | `coverage` | One depth table across all samples of a cohort |
-| | `bin_refinement` | Combines several bin sets into a better one and checks for chimeras |
+| | `bin_refinement` | Combines several bin sets into a better one, joining bins split between binners, and checks for chimeras |
 | | `reassemble_bins` | Reassembles each bin from its own reads |
 | | `dereplicate` | Collapses bins from many samples into one non-redundant catalogue |
 | | `quant_bins` | Bin abundance in each sample (sylph, salmon, CoverM or the depth table) |
@@ -167,7 +176,7 @@ Measured memory per step, GPU memory per binner and the full database table are 
 - [Modules](docs/modules.md): every module's options
 - [Benchmarks](docs/benchmarks.md): every measurement behind the defaults
 - [Coming from metaWRAP 1](docs/metawrap1.md): changed defaults and how to restore each, file renames
-- [Release notes](releases/index.md): the current release is [2.1.5](releases/2.1.5.md)
+- [Release notes](releases/index.md): the current release is [2.1.6](releases/2.1.6.md)
 
 ## Help and contributing
 

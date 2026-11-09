@@ -33,6 +33,10 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
 DEFAULT_THREAD_FRACTION = 0.5
 DEFAULT_MEMORY_FRACTION = 0.8
 DEFAULT_DISK_FRACTION = 0.7
+#: A filesystem over the fraction above still counts as having room while more than this many GB
+#: are free, since on a large filesystem 70% full can leave terabytes free. 0 turns this off, so the
+#: fraction alone decides.
+DEFAULT_MIN_FREE_DISK_GB = 200.0
 
 #: How often to re-check the filesystem during a long step, in seconds. A step can pass the
 #: pre-flight estimate in :mod:`metawrap2.scratch` and still fill the disk hours later.
@@ -47,8 +51,11 @@ LIMITS_KEYS: Dict[str, str] = {
     "max_memory_gb": "absolute memory ceiling in GB (overrides max_memory_fraction)",
     "max_memory_fraction": "fraction of the machine's RAM to use (default %.2f)"
     % DEFAULT_MEMORY_FRACTION,
-    "max_disk_fraction": "stop when a filesystem is this full (default %.2f)"
-    % DEFAULT_DISK_FRACTION,
+    "max_disk_fraction": "stop when a filesystem is this full and has less than min_free_disk_gb "
+    "free (default %.2f)" % DEFAULT_DISK_FRACTION,
+    "min_free_disk_gb": "a filesystem over max_disk_fraction may still be written to while more "
+    "than this many GB are free; 0 stops at max_disk_fraction alone (default %g)"
+    % DEFAULT_MIN_FREE_DISK_GB,
     "max_gpus": "how many GPUs the run may use (default: all visible)",
     "gpu_strict": "refuse to start a GPU step on a card something else is already using "
     "(default false, which warns)",
@@ -62,7 +69,7 @@ class LimitsError(Exception):
 
 
 class DiskCeilingReached(KeyboardInterrupt):
-    """A filesystem passed ``max_disk_fraction`` while a step was running.
+    """A filesystem passed the disk ceiling (see :class:`DiskState`) while a step was running.
 
     Subclasses KeyboardInterrupt, like :class:`metawrap2.interrupt.Stopped`, so the existing
     ``finally`` blocks, manifest updates and ``--resume`` handling for interrupted runs apply.
@@ -193,6 +200,7 @@ class LimitsConfig:
     max_memory_gb: Optional[float] = None
     max_memory_fraction: float = DEFAULT_MEMORY_FRACTION
     max_disk_fraction: float = DEFAULT_DISK_FRACTION
+    min_free_disk_gb: float = DEFAULT_MIN_FREE_DISK_GB
     max_gpus: Optional[int] = None
     gpu_strict: bool = False
     disk_check_interval: int = DEFAULT_DISK_CHECK_INTERVAL
@@ -225,6 +233,16 @@ def _positive_number(value: Any, name: str) -> float:
         raise LimitsError("limits.%s must be a number, got %r" % (name, value))
     if number <= 0:
         raise LimitsError("limits.%s must be greater than 0, got %r" % (name, value))
+    return number
+
+
+def _non_negative_number(value: Any, name: str) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise LimitsError("limits.%s must be a number, got %r" % (name, value))
+    if number < 0:
+        raise LimitsError("limits.%s must be 0 or more, got %r" % (name, value))
     return number
 
 
@@ -272,6 +290,10 @@ def config_from_table(table: Dict[str, Any]) -> LimitsConfig:
         config.max_memory_fraction = _fraction(table["max_memory_fraction"], "max_memory_fraction")
     if "max_disk_fraction" in table:
         config.max_disk_fraction = _fraction(table["max_disk_fraction"], "max_disk_fraction")
+    if "min_free_disk_gb" in table:
+        config.min_free_disk_gb = _non_negative_number(
+            table["min_free_disk_gb"], "min_free_disk_gb"
+        )
     if "max_gpus" in table:
         config.max_gpus = _non_negative_int(table["max_gpus"], "max_gpus")
     if "gpu_strict" in table:
@@ -298,6 +320,7 @@ _OVERRIDE_PARSERS: Dict[str, Callable[[Any, str], Any]] = {
     "max_memory_gb": _positive_number,
     "max_memory_fraction": _fraction,
     "max_disk_fraction": _fraction,
+    "min_free_disk_gb": _non_negative_number,
     "max_gpus": _non_negative_int,
     "gpu_strict": _boolean,
     "disk_check_interval": _positive_int,
@@ -352,6 +375,8 @@ class Budget:
     machine_cores: int
     machine_memory_bytes: int
     machine_gpus: int
+    #: See :data:`DEFAULT_MIN_FREE_DISK_GB`; 0 means the fraction alone sets the ceiling.
+    min_free_bytes: int = 0
 
     @property
     def memory_gb(self) -> float:
@@ -376,6 +401,7 @@ class Budget:
             machine_cores=self.machine_cores,
             machine_memory_bytes=self.machine_memory_bytes,
             machine_gpus=self.machine_gpus,
+            min_free_bytes=self.min_free_bytes,
         )
 
     def describe(self) -> str:
@@ -383,7 +409,12 @@ class Budget:
         parts = [
             "%d/%d threads" % (self.threads, self.machine_cores),
             "%s/%s memory" % (human(self.memory_bytes), human(self.machine_memory_bytes)),
-            "disk ceiling %d%%" % round(self.disk_fraction * 100),
+            (
+                "disk ceiling %d%% with under %s free"
+                % (round(self.disk_fraction * 100), human(self.min_free_bytes))
+                if self.min_free_bytes
+                else "disk ceiling %d%%" % round(self.disk_fraction * 100)
+            ),
         ]
         if self.machine_gpus:
             parts.append("%d/%d GPUs" % (self.gpus, self.machine_gpus))
@@ -395,6 +426,7 @@ class Budget:
             "threads": self.threads,
             "memory_bytes": self.memory_bytes,
             "disk_fraction": self.disk_fraction,
+            "min_free_bytes": self.min_free_bytes,
             "gpus": self.gpus,
             "disk_check_interval": self.disk_check_interval,
             "machine_cores": self.machine_cores,
@@ -457,6 +489,7 @@ def resolve(config: Optional[LimitsConfig] = None) -> Budget:
         machine_cores=cores,
         machine_memory_bytes=memory,
         machine_gpus=gpus,
+        min_free_bytes=int(settings.min_free_disk_gb * 1024**3),
     )
 
 
@@ -474,33 +507,63 @@ def gpu_strict(config: Optional[LimitsConfig] = None) -> bool:
 
 @dataclass(frozen=True)
 class DiskState:
-    """One filesystem's usage at one moment, relative to the configured ceiling."""
+    """One filesystem's usage at one moment, relative to the configured ceiling.
+
+    The ceiling is reached when the filesystem is at least ``max_disk_fraction`` full *and* has
+    no more than ``min_free_disk_gb`` free. A small filesystem stops at the fraction, as before;
+    a large one keeps going while it has the absolute floor free. With a floor of 0 the fraction
+    alone decides.
+    """
 
     path: str
     total_bytes: int
     used_bytes: int
     ceiling_bytes: int
+    min_free_bytes: int = 0
 
     @property
     def fraction_used(self) -> float:
         return self.used_bytes / self.total_bytes if self.total_bytes else 0.0
 
     @property
+    def free_bytes(self) -> int:
+        return max(0, self.total_bytes - self.used_bytes)
+
+    @property
     def over(self) -> bool:
-        return self.used_bytes >= self.ceiling_bytes
+        if self.used_bytes < self.ceiling_bytes:
+            return False
+        return not self.min_free_bytes or self.free_bytes <= self.min_free_bytes
 
     @property
     def headroom_bytes(self) -> int:
         """Bytes that may still be written before the ceiling. Never negative."""
-        return max(0, self.ceiling_bytes - self.used_bytes)
+        below_fraction = self.ceiling_bytes - self.used_bytes
+        if not self.min_free_bytes:
+            return max(0, below_fraction)
+        return max(0, below_fraction, self.free_bytes - self.min_free_bytes)
 
     def describe(self) -> str:
         ceiling_percent = self.ceiling_bytes / self.total_bytes * 100 if self.total_bytes else 0.0
-        return "%s is %.0f%% full (ceiling %.0f%%, %s of headroom)" % (
-            self.path,
-            self.fraction_used * 100,
-            ceiling_percent,
-            human(self.headroom_bytes),
+        if not self.min_free_bytes:
+            return "%s is %.0f%% full, %s free (ceiling %.0f%%, %s of headroom)" % (
+                self.path,
+                self.fraction_used * 100,
+                human(self.free_bytes),
+                ceiling_percent,
+                human(self.headroom_bytes),
+            )
+        return (
+            "%s is %.0f%% full, %s free (ceiling %.0f%% unless more than %s is free; "
+            "%s of headroom)"
+            % (
+                self.path,
+                self.fraction_used * 100,
+                human(self.free_bytes),
+                ceiling_percent,
+                human(self.min_free_bytes),
+                human(self.headroom_bytes),
+            )
         )
 
 
@@ -534,6 +597,7 @@ def disk_state(path: str, budget: Budget) -> Optional[DiskState]:
         total_bytes=usage.total,
         used_bytes=usage.total - usage.free,
         ceiling_bytes=int(usage.total * budget.disk_fraction),
+        min_free_bytes=budget.min_free_bytes,
     )
 
 

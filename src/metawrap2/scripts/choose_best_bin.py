@@ -7,9 +7,12 @@ choose one per bin.
 Contamination is weighted more heavily than completeness, because a slightly less complete genome
 is usually more useful than a slightly more contaminated one::
 
-    score = completeness + 5 * (100 - contamination)
+    score = completeness + CONTAMINATION_WEIGHT * (100 - contamination)
 
-Ties are broken by higher N50. Versions failing the completeness/contamination thresholds are
+``CONTAMINATION_WEIGHT`` (5) is the one in :mod:`metawrap2.constants`. This score is
+:func:`metawrap2.utils.quality_score` (completeness - weight * contamination) plus the constant
+100 * weight, so the two rank versions the same; :func:`~metawrap2.utils.quality_score`'s size
+tiebreak is not used. Ties are broken by higher N50. Versions failing the completeness/contamination thresholds are
 excluded, so a bin with no passing version is dropped.
 
 The ranking is the same as in metaWRAP's original ``choose_best_bin.py``.
@@ -20,8 +23,7 @@ from __future__ import annotations
 import sys
 from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple
 
-#: Contamination is penalised 5x relative to completeness (matches metawrap2.utils).
-CONTAMINATION_WEIGHT = 5.0
+from ..constants import CONTAMINATION_WEIGHT
 
 #: Column positions in a MetaWrap2 ``.stats`` file (see metawrap2.checkm.STATS_HEADER).
 _BIN, _COMPLETENESS, _CONTAMINATION, _N50 = 0, 1, 2, 5

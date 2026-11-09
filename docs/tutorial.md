@@ -157,14 +157,13 @@ two. metaBAT2 takes about 1.3 CPU-hours of this because it reuses SemiBin2's dep
 ```bash
 for S in 0 1 10; do
     metawrap2 bin_refinement -o BIN_REFINEMENT/sample_$S -t 24 -c 70 -x 10 \
-        -A INITIAL_BINNING/sample_$S/metabat2_bins \
-        -B INITIAL_BINNING/sample_$S/semibin2_bins
+        -b INITIAL_BINNING/sample_$S/metabat2_bins,INITIAL_BINNING/sample_$S/semibin2_bins
 done
 ```
 
-This step sets the MAG count. It hybridises the two bin sets, uses CheckM2 to choose which version
-of each bin to keep, then runs GUNC on the kept bins to flag chimeras of two genomes (CheckM2 scores
-these as complete and clean). The result is
+This step sets the MAG count. It builds intersections, unions and differences of overlapping bins
+from the two sets, uses CheckM2 to choose which bins to keep, then runs GUNC on the kept bins to
+flag chimeras of two genomes (CheckM2 scores these as complete and clean). The result is
 `BIN_REFINEMENT/sample_$S/metawrap_70_10_bins` with `metawrap_70_10_bins.stats.tsv` beside it: one
 row per bin with completeness, contamination, GC, lineage, N50, size and the two GUNC columns.
 
@@ -173,7 +172,8 @@ reduced tree, which needs about 16 GB of memory per call (40 GB with `--full-tre
 database (`metawrap2 install-db checkm`).
 
 Cost: included in the 43.8 CPU-hours above. The consolidator comparison measured 4.52 CPU-hours to
-refine one sample's bins ([Benchmarks](benchmarks.md) §5).
+refine one sample's bins ([Benchmarks](benchmarks.md) §5). Both figures, and the committed MAG
+counts, are from the 2.1.5 consolidator, which `--mw1-refinement` runs.
 
 ### Step 5: quant_bins
 

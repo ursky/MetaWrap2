@@ -122,7 +122,9 @@ def _run(tmp_path, letters, extra=()):
     dirs = _write_bin_sets(tmp_path, letters)
     out = tmp_path / "refined"
     # --skip-gunc: GUNC needs a 6.7 GB reference database and is not part of what is tested.
+    # --mw1-refinement: the recorded values are metaWRAP 1's method, the default up to 2.1.5.
     argv = ["-o", str(out), "-t", "1", "-m", "8", "-c", "50", "-x", "10", "--skip-gunc"]
+    argv += ["--mw1-refinement"]
     for flag, letter in zip(("-A", "-B", "-C", "-D", "-E", "-F"), letters):
         argv += [flag, dirs[letter]]
     argv += list(extra)
@@ -293,6 +295,7 @@ def test_a_resume_with_the_other_scorer_is_refused(tmp_path, monkeypatch, capsys
     _config_with(tmp_path, monkeypatch, CHECKM_DB=str(checkm_data))
     monkeypatch.setattr(runner, "resume", True)
     argv = ["-o", out, "-t", "1", "-m", "8", "-c", "50", "-x", "10", "--skip-gunc", "--checkm1"]
+    argv += ["--mw1-refinement"]
     argv += ["-A", str(tmp_path / "binner_A"), "-B", str(tmp_path / "binner_B")]
     with pytest.raises(SystemExit):
         bin_refinement.main(argv)
@@ -308,6 +311,7 @@ def test_a_run_from_before_the_scorer_file_is_judged_by_its_stats(tmp_path, monk
     os.remove(os.path.join(out, "work_files", bin_refinement.SCORER_FILE))
     monkeypatch.setattr(runner, "resume", True)
     argv = ["-o", out, "-t", "1", "-m", "8", "-c", "50", "-x", "10", "--skip-gunc"]
+    argv += ["--mw1-refinement"]
     argv += ["-A", str(tmp_path / "binner_A"), "-B", str(tmp_path / "binner_B")]
     with pytest.raises(SystemExit):
         bin_refinement.main(argv)

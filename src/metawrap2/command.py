@@ -94,14 +94,67 @@ class EnvManagerMissing(RuntimeError):
 
     def __init__(self, env_manager: str, env: str) -> None:
         super().__init__(
-            "%s is not on PATH, so tools cannot run inside their conda environment (%s).\n"
-            "Add it to PATH (for a conda/mamba install, export "
-            'PATH="$HOME/miniforge3/bin:$PATH"; non-login shells and most batch schedulers '
-            "do not set it), or set use_conda_envs = false under [settings] in "
-            "~/.metawrap2/config.toml to run the tools already on PATH." % (env_manager, env)
+            "%s was not found, so tools cannot run inside their conda environment (%s).\n"
+            "It was looked for on PATH, in $MAMBA_EXE and $CONDA_EXE, in [settings] env_manager "
+            "and under %s. Non-login shells and most batch schedulers do not set PATH for "
+            "conda. Set env_manager under [settings] in ~/.metawrap2/config.toml to the mamba or "
+            "conda executable (for example ~/miniforge3/bin/mamba), export MAMBA_EXE, or add its "
+            "directory to PATH. To run the tools already on PATH instead, set use_conda_envs = "
+            "false under [settings]." % (env_manager, env, ", ".join(ENV_MANAGER_ROOTS))
         )
         self.env_manager = env_manager
         self.env = env
+
+
+#: Conda installations looked in for mamba or conda when neither is on PATH, after $MAMBA_EXE,
+#: $CONDA_EXE and ``[settings] env_manager``.
+ENV_MANAGER_ROOTS = ("~/miniforge3", "~/mambaforge", "~/miniconda3", "~/anaconda3", "~/micromamba")
+
+#: ``[settings] env_manager`` of the running module, set by :func:`set_configured_env_manager`.
+_configured_env_manager = ""
+
+
+def set_configured_env_manager(path: str) -> None:
+    """Record ``[settings] env_manager`` (a path to mamba or conda, or empty for unset)."""
+    global _configured_env_manager
+    _configured_env_manager = path or ""
+
+
+def _executable(path: str) -> Optional[str]:
+    path = os.path.expanduser(path)
+    return path if os.path.isfile(path) and os.access(path, os.X_OK) else None
+
+
+def locate_env_manager(name: str) -> Optional[str]:
+    """The executable that runs ``<manager> run -n env``, or None if none is found.
+
+    *name* (``mamba``) on PATH is used as it is. Otherwise, in order: ``[settings] env_manager``,
+    ``$MAMBA_EXE``, ``$CONDA_EXE``, then mamba and conda under the usual install locations
+    (:data:`ENV_MANAGER_ROOTS`). A non-login shell or a batch job often has none of them on PATH.
+    """
+    if shutil.which(name):
+        return name
+    candidates = [_configured_env_manager, os.environ.get("MAMBA_EXE", "")]
+    candidates.append(os.environ.get("CONDA_EXE", ""))
+    for program in ("mamba", "conda"):
+        for root in ENV_MANAGER_ROOTS:
+            for sub in ("bin", "condabin"):
+                candidates.append(os.path.join(root, sub, program))
+    for candidate in candidates:
+        found = _executable(candidate) if candidate else None
+        if found:
+            return found
+    return None
+
+
+def ensure_env_manager() -> bool:
+    """Point the runner at an env manager, found off PATH if need be. False if there is none."""
+    found = locate_env_manager(runner.env_manager)
+    if found is None:
+        return False
+    if found != runner.env_manager:
+        runner.configure(env_manager=found)
+    return True
 
 
 _RUN_FLAGS_CACHE: dict = {}
@@ -273,8 +326,9 @@ class CommandRunner:
         """argv prefix that runs a command inside conda env *env* (or [] if None)."""
         if not env:
             return []
-        if not self.dry_run and shutil.which(self.env_manager) is None:
-            # Not under a dry run, which should print the plan even with nothing installed.
+        # Not under a dry run, which should print the plan even with nothing installed.
+        missing = not self.dry_run and shutil.which(self.env_manager) is None
+        if missing and not ensure_env_manager():
             raise EnvManagerMissing(self.env_manager, env)
         return [self.env_manager, "run"] + _run_flags(self.env_manager) + ["-n", env]
 

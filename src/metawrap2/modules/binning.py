@@ -31,10 +31,12 @@ from ..config import MODULE_ENVS, load_settings
 from ..constants import BIN_EXTENSION, FASTA_EXTENSIONS, UNBINNED_NAME, bin_filename
 from ..io.seqio import contig_id, is_binnable, iter_fasta
 from ..progress import bar
+from ..scorecache import scorer_name
 from ..utils import short_tmpdir
 from ._common import (
     Raw,
     absolutize_paths,
+    add_score_cache_arg,
     add_scorer_args,
     align_read_sets,
     announcement,
@@ -51,6 +53,7 @@ from ._common import (
     listdir,
     make_checkpoint,
     memory_arg,
+    open_score_cache,
     optional_env_for,
     quoted_words,
     resolve_memory_gb,
@@ -395,6 +398,7 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         help="score each binner's bins with CheckM2 (CheckM1 with --checkm1)",
     )
     add_scorer_args(p, "the bins (with --run-checkm)")
+    add_score_cache_arg(p)
     p.add_argument(
         "--long-read-type",
         choices=sorted(_long.READ_TYPES),
@@ -1526,18 +1530,36 @@ def main(argv: List[str]) -> int:
             error(str(e))
 
         if args.run_checkm:
+            # Bins scored by earlier runs with the same scorer, version and database are reused
+            # from the shared score cache, unless --no-score-cache.
+            shared_scores = open_score_cache(
+                args,
+                settings,
+                scorer_name(args.checkm2, args.full_tree),
+                env=(checkm2_env or checkm1_env) if args.checkm2 else checkm1_env,
+            )
             for binner_dir in BIN_DIRS:
                 path = os.path.join(args.output, binner_dir)
                 if _count_bins(path):
-                    _checkm.run_checkm(
-                        path,
-                        threads=args.threads,
-                        mem_gb=args.memory,
-                        env=checkm1_env,
-                        reduced_tree=not args.full_tree,
-                        checkm2=args.checkm2,
-                        checkm2_env=checkm2_env,
-                    )
+                    scorer_kwargs = {
+                        "threads": args.threads,
+                        "mem_gb": args.memory,
+                        "env": checkm1_env,
+                        "reduced_tree": not args.full_tree,
+                        "checkm2": args.checkm2,
+                        "checkm2_env": checkm2_env,
+                    }
+                    if shared_scores is None:
+                        _checkm.run_checkm(path, **scorer_kwargs)
+                    else:
+                        # Every bin is scored (no size filter), as without the shared cache.
+                        _checkm.run_checkm_cached(
+                            path,
+                            cache=_checkm.BinScoreCache(shared=shared_scores),
+                            prefilter=False,
+                            say=comm,
+                            **scorer_kwargs,
+                        )
 
         announcement("BINNING PIPELINE SUCCESSFULLY FINISHED!!!")
     finally:

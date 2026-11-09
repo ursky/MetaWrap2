@@ -9,9 +9,11 @@ config.
   is `metawrap2.toml`.
 - Tools run in conda environments created by `metawrap2 quickstart`.
 - The `kraken` (KRAKEN1) module and `--metabat1` are gone; use `kraken2` and `--metabat2`.
+- `bin_refinement` takes its bin sets as `-b DIR1,DIR2,...` instead of `-A`, `-B` and `-C`, and takes
+  more than three. `-A` to `-F` are still accepted.
 - `.stats` and `.contigs` files are now `.stats.tsv` and `.contigs.tsv`, with the same contents.
   Bins are `bin_001.fasta` for every binner, so a script that globs `*.fa` needs `*.fasta`.
-- Five defaults changed, each based on a measurement in [Benchmarks](benchmarks.md).
+- Six defaults changed, each based on a measurement in [Benchmarks](benchmarks.md).
   To reproduce a metaWRAP 1 result:
 
   | | MetaWrap2 default | metaWRAP 1 behaviour |
@@ -21,6 +23,7 @@ config.
   | Binners | metaBAT2 + SemiBin2 | `--metabat2 --maxbin2 --concoct` |
   | Depth-table identity floor | 90% | `--min-identity 97` |
   | Bin scorer | CheckM2 | `--checkm1` |
+  | Bin consolidation | unions and differences of overlapping bins added to the intersections | `--mw1-refinement` |
 
 - GUNC runs on the final bins and flags chimeric ones. With `--skip-gunc` it does not run and its
   database is not needed.
@@ -28,6 +31,11 @@ config.
 ## Other changes
 
 Binning
+- `bin_refinement` adds unions and differences of overlapping bins to Binning_refiner's
+  intersections and ranks all candidates in one list. metaWRAP 1's method only intersects bins, so
+  no output bin can be more complete than the best input bin. On the same bin sets MetaWrap2 gave
+  267 clean HQ MAGs against 230 for metaWRAP 1.3.0 on a Hadza gut sample and between one fewer and
+  seven more on CAMI, for fewer CPU-hours on CAMI2 ([Benchmarks](benchmarks.md#consolidators)).
 - Six binners, three of them learned (SemiBin2, VAMB, COMEBin), selected by `--preset` tiers, each
   benchmarked end to end. `--preset deep` refines three complementary bin sets.
 - GUNC chimera filtering is on by default. A chimeric bin can score as complete and clean in CheckM;

@@ -162,3 +162,16 @@ def test_the_reduced_tree_budgets_16_gb_per_pplacer_thread():
     assert checkm.pplacer_threads(60, 300, reduced_tree=True) == 8
     assert checkm.pplacer_threads(8, 64, reduced_tree=True) == 4
     assert checkm.pplacer_threads(8, 20, reduced_tree=True) == 1
+
+
+def test_a_reduced_tree_fallback_is_marked_so_its_scores_are_not_shared(tmp_path, monkeypatch):
+    """The shared score cache files these scores under the full tree, so they are kept out."""
+    monkeypatch.setattr(checkm, "checkm1_data_env", dict)
+    bins = _bins(tmp_path)
+    monkeypatch.setattr(checkm, "run", _fake_run([], produce_on=3))
+    checkm.run_checkm(bins, threads=60, mem_gb=300, env="e")
+    assert checkm._fell_back(bins)
+    # A later run on the same directory that needs no fallback clears the mark.
+    monkeypatch.setattr(checkm, "run", _fake_run([], produce_on=1))
+    checkm.run_checkm(bins, threads=60, mem_gb=300, env="e")
+    assert not checkm._fell_back(bins)

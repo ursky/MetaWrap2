@@ -12,7 +12,7 @@ the measured effect of each addition. metaWRAP 1.3.0 is the baseline throughout.
 | which binners run | one fixed set | `--preset default` or `deep`, 114 and 177 clean MAGs |
 | depth table | `jgi_summarize_bam_contig_depths` | own implementation; identity floor measured and moved |
 | chimera detection | none | GUNC on every final bin set, on by default |
-| consolidation | CheckM on every combination | same, minus repeat and ruled-out calls |
+| consolidation | CheckM on every combination | unions and differences of overlapping bins added (2.1.6); metaWRAP 1's method as `--mw1-refinement`, minus repeat and ruled-out calls |
 | bin abundance | salmon | sylph default, four quantifiers measured |
 | read capping for reassembly | none | `--max-coverage`, default 50× |
 | defaults chosen by | the author | `metawrap2 benchmark`, results committed |
@@ -36,7 +36,9 @@ Quality. CheckM2 assigns MIMAG tiers (near-complete ≥90% complete / ≤5% cont
 ≥70/≤10) and GUNC scores chimerism. The headline metric is clean high-quality MAGs: bins that are
 ≥70/≤10 and non-chimeric, counted by joining the two reports per bin (an HQ count times a per-set GUNC pass fraction
 understated one arm by 18 genomes, §8). The same CheckM2 and GUNC score every arm, including
-metaWRAP 1, which refines internally with CheckM 1.0.18.
+metaWRAP 1, which refines internally with CheckM 1.0.18. The exception is the CAMI2
+gastrointestinal end-to-end comparison (§2): its MetaWrap2 arms are scored with CheckM1 and GUNC,
+and metaWRAP 1 with CheckM2 and GUNC.
 
 Where AMBER applies, it adds bp-weighted F1, purity and completeness. A bin that is 95% one genome
 and 5% another loses little bp-weighted purity, so AMBER is reported with GUNC.
@@ -73,7 +75,11 @@ scripts left one arm with bins and no cost measurement, and defaulted to ten sam
 they were compared against used three.
 
 Baseline. metaWRAP 1.3.0 from its own conda environment at its recipe's pinned versions: metaBAT2
-2.12.1, MaxBin2 2.2.5, CheckM 1.0.18, bwa 0.7.18, Python 2.7.15.
+2.12.1, MaxBin2 2.2.5, CheckM 1.0.18, bwa 0.7.18, Python 2.7.15. It runs its own read QC, assembly,
+binning and refinement in §2 to §2.3, and its own binning and refinement on the Hadza and
+faecal-transplant samples (§2.5). On the gold assemblies (§2.4) and the gut and water
+co-assemblies (§2.5) only its refinement runs, over metaBAT2, MaxBin2 and CONCOCT bins made through
+MetaWrap2 from MetaWrap2's depth table.
 
 ---
 
@@ -124,6 +130,10 @@ selects it.
 | `--preset default` | 56 | **53** | **43.8** | 0.6 |
 | `--preset deep` | 64 | **60** | 120.7 | 2.4 |
 
+metaWRAP 1's bins are rescored with CheckM2 and GUNC. The `default` and `deep` counts come from
+the CheckM1 and GUNC table that `bin_refinement` wrote; no CheckM2 rescore of them exists, so the
+two scorers' counts are not on an identical scale.
+
 All arms share the same assemblies (83 CPU-hours, excluded; including them would reduce the 2.8×
 spread between `default` and `deep` to 1.6×). GPU-hours are the wall time of binners run with
 `--device cuda`; the CPU-hours for `default` and `deep` assume a GPU.
@@ -166,7 +176,8 @@ by a few genera.
 | oral | 45 clean (49 HQ) | **51 clean** (57 HQ) | +13% | 172.6 vs 184.9 |
 | skin | 41 clean (48 HQ) | **50 clean** (57 HQ) | +22% | 136.2 vs 200.2 |
 
-All six counts use the per-bin CheckM2 ∩ GUNC join. The figure adds `--preset deep`, with a binning-plus-refinement cost panel.
+The oral and skin counts and metaWRAP 1's gastrointestinal count use the per-bin CheckM2 ∩ GUNC
+join; the MetaWrap2 gastrointestinal count uses CheckM1 ∩ GUNC (§2). The figure adds `--preset deep`, with a binning-plus-refinement cost panel.
 
 Per sample, `default` wins five of the six oral and skin samples and ties one (oral 20/17, 13/10,
 18/18; skin 14/10, 17/16, 19/15 clean).
@@ -225,6 +236,11 @@ completeness is the share of its majority genome's bases it holds and contaminat
 its own bases from other genomes. This contamination is not CheckM's: it counts bases, not
 duplicated markers, and cannot exceed 100%.
 
+The metaWRAP 1 column is metaWRAP 1.3.0's `bin_refinement` (CheckM 1.0.18) over the metaBAT2 and
+MaxBin2 bin sets that MetaWrap2 made, plus CONCOCT run through MetaWrap2, all from MetaWrap2's
+alignments and depth table. It measures metaWRAP 1's refinement and binner set, not its binning
+module.
+
 Bins by truth-based quality (CAMI3 against its prokaryote-only truth, since its gold standard also
 holds the human host and fungi):
 
@@ -257,10 +273,13 @@ Four datasets with no known answer, scored with CheckM2 and GUNC. One read QC pa
 per dataset are shared by all arms.
 
 - Gut and water from the metaWRAP 1 paper: 50 MetaHIT gut and 36 Baltic Sea water samples, one
-  MEGAHIT co-assembly each, metaWRAP 1 re-run on the same co-assemblies.
+  MEGAHIT co-assembly each. The metaWRAP 1 arm is metaWRAP 1.3.0's `bin_refinement` over
+  metaBAT2, MaxBin2 and CONCOCT bins made through MetaWrap2 on the same co-assemblies, with
+  MetaWrap2's depth table.
 - One deeply sequenced Hadza gut sample (ERR7745335, published assembly).
 - A faecal-transplant series of three samples (one MEGAHIT co-assembly). Final sets for this and the
-  Hadza sample were rescored with `metawrap2 score`.
+  Hadza sample were rescored with `metawrap2 score`. On these two, metaWRAP 1.3.0 ran its own
+  binning and refinement on the shared assembly.
 
 ![Real samples](figures/real_samples_binning.png)
 
@@ -268,7 +287,14 @@ per dataset are shared by all arms.
 |---|---:|---:|---:|---:|
 | metaWRAP 1 | 94 (36.5 h) | 183 (98.5 h) | 158 (15.4 h) | 72 (5.0 h) |
 | MetaWrap2 default | 110 (1.5 h) | 184 (2.7 h) | 207 (3.0 h) | 78 (2.2 h) |
-| MetaWrap2 `deep` | 125 (6.4 h) | 197 (13.3 h) | 250 (9.5 h) | 111 (4.7 h) |
+| MetaWrap2 `deep` | 125 (6.4 h) | 197 (13.3 h) | 267 (11.1 h) | 115 (4.8 h) |
+
+The `deep` cells for the one- and three-sample gut datasets use the 2.1.6 default consolidator,
+from the [consolidator benchmark](#consolidators), which re-consolidated the same `deep` bin sets.
+The extra refinement wall time (1.6 h on the single sample, 0.05 h on three samples) is an
+estimate: those runs reused some scores, so their time was scaled to the share of candidates scored
+fresh. All other cells, and the CAMI tables, were measured with the 2.1.5 consolidator, now
+`--mw1-refinement`.
 
 Notes on the one- and three-sample runs:
 
@@ -288,8 +314,8 @@ Notes on the one- and three-sample runs:
 
 ![bin_refinement: scoring bin sets in parallel](figures/refine_speedup.png)
 
-Three-binner refinement (metaBAT2 26, MaxBin2 21 and CONCOCT 56 bins on a 16,527-contig assembly),
-`-c 70 -x 10`, seven hybrid sets.
+Three-binner refinement with the metaWRAP 1 method (`--mw1-refinement` from 2.1.6; metaBAT2 26,
+MaxBin2 21 and CONCOCT 56 bins on a 16,527-contig assembly), `-c 70 -x 10`, seven hybrid sets.
 
 | | one set at a time | sets in parallel | final bins |
 |---|---:|---:|---|
@@ -349,7 +375,7 @@ COMEBin finds most of what the others find. The best pair is COMEBin + SemiBin2 
 best trio is COMEBin + SemiBin2 + MaxBin2 (182); COMEBin + SemiBin2 + metaBAT2 reaches 181.
 
 `deep` uses the trio with metaBAT2, one genome short of the best trio. Of the trios within one genome
-of the best it is cheaper by an order of magnitude: metaBAT2 costs ~1.5 CPU-hours, against VAMB's 4.9 GPU-hours, MaxBin2's 24.5 CPU-hours and CONCOCT's
+of the best it is cheaper by an order of magnitude: metaBAT2 costs ~1.5 CPU-hours, against VAMB's 4.9 CPU-hours on a GPU (0.29 hours of wall time), MaxBin2's 24.5 CPU-hours and CONCOCT's
 238. It covers three algorithm families: contrastive (COMEBin), self-supervised (SemiBin2) and
 composition-plus-coverage (metaBAT2).
 
@@ -394,8 +420,10 @@ directly replace the depth table.
 
 ![Refinement savings](figures/refinement_savings.png)
 
-Refinement hybridises every combination of its input bin sets and runs CheckM to choose which version
-of each bin to keep: 2ⁿ−1 CheckM runs. Two kinds of call are skipped without changing any result:
+The default consolidator up to 2.1.5, metaWRAP 1's method (`--mw1-refinement` from 2.1.6), hybridises
+every combination of its input bin sets and runs CheckM to choose which version of each bin to keep:
+2ⁿ−1 CheckM runs. The measurements in this section before [Consolidators](#consolidators) are of
+that method. Two kinds of call are skipped without changing any result:
 
 - Bins already scored, identified by a hash of their sorted contig ids: a third of the calls.
 - Bins outside 200 kb–20 Mb, which cannot be ≥70%-complete genomes. CheckM's cost scales with bases,
@@ -406,8 +434,237 @@ bin sets were 12.0% and 36.0% chimeric and the consolidated set 6.7%. GUNC annot
 not drop them. `--skip-gunc` opts out, along with its 6.7 GB database.
 
 `--consolidator dastool` scores input bins once on single-copy genes instead of running CheckM on every
-combination. On one sample, `metawrap` keeps 13 MAGs for 4.52 CPU-hours and DAS Tool keeps 10 for
-0.62; the default is unchanged.
+combination. On one sample, the metaWRAP 1 method keeps 13 MAGs for 4.52 CPU-hours and DAS Tool keeps
+10 for 0.62.
+
+The default from 2.1.6, `--consolidator metawrap2`, adds unions and differences of overlapping input
+bins to the intersections and keeps a derived bin only if it outscores the original bins and
+intersections it would block (see [Consolidators](#consolidators)).
+
+### Consolidators
+
+Seven consolidation arms, each given the same input: the metaBAT2, SemiBin2 and COMEBin bin sets
+of `--preset deep` and the assembly they came from. Input bins outside 200 kb–20 Mb were removed
+for every arm, the window `bin_refinement` applies internally. For the clean HQ tables, arms with
+quality thresholds ran at `-c 70 -x 10` or its equivalent; DAS Tool and MAGScoT kept their own
+scoring defaults. Every arm with thresholds was also run at 90/5 for the near-complete table.
+
+| arm | tool |
+|---|---|
+| MetaWrap2 | MetaWrap2 `bin_refinement`, the 2.1.6 default (`--consolidator metawrap2`): intersections, unions and differences over cliques of overlapping bins, lookahead guard, contamination weight 5, CheckM2 |
+| metaWRAP 1.3.0 | metaWRAP 1.3.0 `bin_refinement` (CheckM 1.0.18) |
+| `--consolidator dastool` | MetaWrap2 `bin_refinement --consolidator dastool` |
+| DAS Tool | DAS Tool 1.1.7 |
+| Binette | Binette 1.2.1 |
+| MAGScoT | MAGScoT (commit 0b561ef) |
+| UniteM | UniteM 1.2.6, greedy |
+
+Datasets: the pooled gold assemblies of CAMI2 gastrointestinal, oral and skin and of the CAMI3 toy
+dataset (§2.4), one deeply sequenced Hadza gut sample (ERR7745335, published assembly) and a
+three-sample faecal-transplant series (PRJNA701961, one MEGAHIT co-assembly). Every arm's output
+was rescored with the same CheckM2, GUNC and MIMAG tagging; no tool's own scores are used. Cost is
+CPU-hours of the whole path from bin sets and assembly to the final set, including each tool's own
+gene prediction and marker search. Arms ran at the same time on one large shared server, so wall
+time is not compared. One run per arm.
+
+The MetaWrap2 arm ran the algorithm as a standalone implementation, scored with CheckM2, before it
+was moved into `bin_refinement`. The `--consolidator dastool` arm ran development code based on
+2.1.3 (see the end of this section). Binette orders equally scored candidates by a key that depends
+on the Python hash seed (`PYTHONHASHSEED`), so its counts are one draw each; in three runs on the
+same input its candidate pool had the same size and the labels of one or two candidates changed.
+
+![Clean MAGs and chimeric bins per consolidator](figures/consolidators_clean_hq.png)
+
+Clean HQ MAGs:
+
+| | CAMI2 gastrointestinal | CAMI2 oral | CAMI2 skin | CAMI3 toy | Hadza | faecal transplant |
+|---|---:|---:|---:|---:|---:|---:|
+| MetaWrap2 | 190 | 292 | 255 | 267 | 267 | 115 |
+| metaWRAP 1.3.0 | 191 | 286 | 255 | 260 | 230 | 99 |
+| `--consolidator dastool` | 184 | 267 | 229 | 225 | 169 | 73 |
+| DAS Tool | 185 | 269 | 231 | 226 | 180 | 73 |
+| Binette | 187 | 291 | 257 | 255 | 260 | 104 |
+| MAGScoT | 191 | 279 | 244 | 249 | 240 | 101 |
+| UniteM | 189 | 280 | 247 | 237 | 243 | 106 |
+
+Clean VHQ MAGs (≥90% complete, ≤5% contaminated, passes GUNC) in the same 70/10 runs; the
+near-complete table further down uses runs at 90/5:
+
+| | CAMI2 gastrointestinal | CAMI2 oral | CAMI2 skin | CAMI3 toy | Hadza | faecal transplant |
+|---|---:|---:|---:|---:|---:|---:|
+| MetaWrap2 | 170 | 242 | 189 | 230 | 143 | 61 |
+| metaWRAP 1.3.0 | 172 | 239 | 189 | 222 | 132 | 51 |
+| `--consolidator dastool` | 165 | 230 | 178 | 191 | 115 | 48 |
+| DAS Tool | 165 | 230 | 178 | 191 | 118 | 48 |
+| Binette | 172 | 242 | 196 | 225 | 155 | 62 |
+| MAGScoT | 172 | 241 | 187 | 219 | 140 | 56 |
+| UniteM | 170 | 237 | 185 | 201 | 133 | 55 |
+
+CPU-hours:
+
+| | CAMI2 gastrointestinal | CAMI2 oral | CAMI2 skin | CAMI3 toy | Hadza | faecal transplant |
+|---|---:|---:|---:|---:|---:|---:|
+| MetaWrap2 | 26.7 | 46.6 | 51.7 | | | |
+| metaWRAP 1.3.0 | 48.6 | 69.9 | 72.9 | 82.3 | 21.8 | 18.5 |
+| `--consolidator dastool` | 8.0 | 12.7 | 12.2 | 15.5 | 6.1 | 2.7 |
+| DAS Tool | 1.4 | 2.5 | 2.4 | 6.0 | 2.3 | 0.9 |
+| Binette | 2.2 | 3.0 | 3.1 | 4.5 | 2.8 | 1.4 |
+| MAGScoT | 1.5 | 2.3 | 2.2 | 5.3 | 2.2 | 0.9 |
+| UniteM | 4.7 | 6.7 | 6.9 | 10.9 | 5.8 | 2.6 |
+
+A blank cell was not measured cleanly: on those datasets the MetaWrap2 arm reused CheckM2 scores of
+candidates that an earlier development arm on the same bin sets had scored. On CAMI2 it scored
+2,177, 6,588 and 6,289 candidates for 26.7, 46.6 and 51.7 CPU-hours, with a peak memory of
+15-16 GB. That is less than metaWRAP 1.3.0 (48.6, 69.9 and 72.9) and 12-17x Binette (2.2-3.1).
+CheckM2 predicts genes and runs DIAMOND on each candidate bin separately, so a contig shared by many
+candidates is processed many times. Binette predicts genes and runs DIAMOND once over the assembly,
+builds each candidate's CheckM2 features by summing per-contig counts and runs the CheckM2 models
+in process; in a wall-time comparison on the faecal-transplant series this was about 17 times
+faster per candidate. The 90/5 run of MetaWrap2 scores the same candidates as the 70/10 run.
+
+Final bins, and of those the bins that fail GUNC:
+
+| | CAMI2 gastrointestinal | CAMI2 oral | CAMI2 skin | CAMI3 toy | Hadza | faecal transplant |
+|---|---:|---:|---:|---:|---:|---:|
+| MetaWrap2 | 194 / 4 | 297 / 5 | 270 / 15 | 280 / 13 | 277 / 10 | 123 / 8 |
+| metaWRAP 1.3.0 | 197 / 4 | 299 / 6 | 272 / 10 | 277 / 14 | 251 / 10 | 114 / 8 |
+| `--consolidator dastool` | 193 / 7 | 281 / 10 | 249 / 18 | 266 / 39 | 183 / 9 | 83 / 9 |
+| DAS Tool | 208 / 7 | 336 / 14 | 288 / 20 | 336 / 47 | 241 / 16 | 102 / 17 |
+| Binette | 193 / 6 | 301 / 10 | 277 / 19 | 279 / 24 | 281 / 19 | 120 / 16 |
+| MAGScoT | 206 / 5 | 368 / 24 | 319 / 29 | 319 / 29 | 332 / 32 | 138 / 23 |
+| UniteM | 235 / 10 | 568 / 66 | 389 / 39 | 451 / 82 | 550 / 76 | 200 / 45 |
+
+The same as a share of final bins failing GUNC:
+
+| | CAMI2 gastrointestinal | CAMI2 oral | CAMI2 skin | CAMI3 toy | Hadza | faecal transplant |
+|---|---:|---:|---:|---:|---:|---:|
+| MetaWrap2 | 2.1% | 1.7% | 5.6% | 4.6% | 3.6% | 6.5% |
+| metaWRAP 1.3.0 | 2.0% | 2.0% | 3.7% | 5.1% | 4.0% | 7.0% |
+| `--consolidator dastool` | 3.6% | 3.6% | 7.2% | 14.7% | 4.9% | 10.8% |
+| DAS Tool | 3.4% | 4.2% | 6.9% | 14.0% | 6.6% | 16.7% |
+| Binette | 3.1% | 3.3% | 6.9% | 8.6% | 6.8% | 13.3% |
+| MAGScoT | 2.4% | 6.5% | 9.1% | 9.1% | 9.6% | 16.7% |
+| UniteM | 4.3% | 11.6% | 10.0% | 18.2% | 13.8% | 22.5% |
+
+In these 70/10 runs MetaWrap2 has a lower share of bins failing GUNC than Binette, MAGScoT, UniteM
+and DAS Tool on every dataset, and the lowest of all seven arms on CAMI2 oral, CAMI3 toy, Hadza and
+the faecal-transplant series. metaWRAP 1.3.0 is lower on CAMI2 gastrointestinal (2.0% against
+2.1%) and skin (3.7% against 5.6%). MAGScoT here ran at its own default thresholds; a MAGScoT run
+at 70/10 had 4.5% failing on Hadza (10 of 221), against 3.6% for MetaWrap2. At 90/5 MAGScoT is
+cleaner on two CAMI2 datasets (see the near-complete table below).
+
+Mean rank by clean HQ MAGs over the six datasets (1 is best; tied arms share the better rank).
+The per-dataset ranks are in the column order of the tables above:
+
+| arm | mean rank | ranks per dataset |
+|---|---:|---|
+| MetaWrap2 | 1.50 | 3, 1, 2, 1, 1, 1 |
+| Binette | 2.67 | 5, 2, 1, 3, 2, 3 |
+| metaWRAP 1.3.0 | 3.00 | 1, 3, 2, 2, 5, 5 |
+| UniteM | 3.67 | 4, 4, 4, 5, 3, 2 |
+| MAGScoT | 3.83 | 1, 5, 5, 4, 4, 4 |
+| DAS Tool | 6.00 | 6, 6, 6, 6, 6, 6 |
+| `--consolidator dastool` | 6.83 | 7, 7, 7, 7, 7, 6 |
+
+Head to head on clean HQ MAGs, MetaWrap2's wins-losses-ties over six datasets:
+
+| against | MetaWrap2 |
+|---|---|
+| metaWRAP 1.3.0 | 4-1-1 |
+| Binette | 5-1-0 |
+| MAGScoT | 5-1-0 |
+| UniteM | 6-0-0 |
+| DAS Tool | 6-0-0 |
+| `--consolidator dastool` | 6-0-0 |
+
+**MetaWrap2.** On the two real datasets it recovered more clean HQ MAGs than any other arm: 267 on
+Hadza against 260 for Binette and 230 for metaWRAP 1.3.0, and 115 on the faecal-transplant series
+against 106 for UniteM and 99 for metaWRAP 1.3.0. It also recovered the most on CAMI2 oral (292)
+and CAMI3 toy (267). It was second on CAMI2 skin (255 against 257 for Binette) and third on
+gastrointestinal (190 against 191 for metaWRAP 1.3.0 and MAGScoT). Binette has the most clean VHQ
+MAGs in the 70/10 runs on Hadza (155) and CAMI2 skin (196).
+
+Unions and differences, measured by turning them off (intersections only, the same selection and
+weight 5):
+
+| | CAMI2 gastrointestinal | CAMI2 oral | CAMI2 skin | CAMI3 toy | Hadza | faecal transplant |
+|---|---:|---:|---:|---:|---:|---:|
+| MetaWrap2 | 190 | 292 | 255 | 267 | 267 | 115 |
+| intersections only | 188 | 289 | 254 | 267 | 258 | 111 |
+| difference | +2 | +3 | +1 | 0 | +9 | +4 |
+
+The lookahead guard and iterating the candidate building over several rounds were tested during
+development; the guard ships and iteration does not.
+
+**Near-complete MAGs.** `-c`/`-x` are the target a consolidator selects for, so a near-complete
+count read off a 70/10 run measures a target the tool was not given. Every tool was therefore run
+again at 90/5 in its own units (`-c 90 -x 5`; Binette `--min_completeness 90
+--max_contamination 5`; UniteM `-x 90 -y 5`; MAGScoT `-t 0.9 --max_cont 0.05`) and scored for clean
+VHQ MAGs. MAGScoT was also run at 70/10 (`-t 0.7 --max_cont 0.10`), so it has three runs. Each cell
+below is the better of that tool's runs, and the run is given. The MetaWrap2 row is its 90/5 run.
+
+| clean VHQ MAGs | CAMI2 gastrointestinal | CAMI2 oral | CAMI2 skin | CAMI3 toy | Hadza | faecal transplant |
+|---|---:|---:|---:|---:|---:|---:|
+| MetaWrap2, 90/5 | 173 | 247 | 193 | 233 | 153 | 63 |
+| metaWRAP 1.3.0, 70/10 [b] | 172 | 239 | 189 | 222 | 132 | 51 |
+| `--consolidator dastool`, 70/10 [b] | 165 | 230 | 178 | 191 | 115 | 48 |
+| DAS Tool [a] | 165 | 230 | 178 | 191 | 118 | 48 |
+| Binette | 173 (90/5) | 242 (90/5) | 196 (70/10) | 226 (90/5) | 155 (70/10) | 62 (70/10) |
+| MAGScoT [b] | 172 (defaults) | 241 (defaults) | 190 (70/10) | 220 (70/10) | 140 (defaults) | 56 (defaults) |
+| UniteM | 170 (90/5) | 237 (90/5) | 185 (90/5) | 201 (90/5) | 133 (90/5) | 55 (70/10) |
+
+- [a] DAS Tool has no completeness or contamination threshold, so its one run is in both tables.
+- [b] A run at a looser target recovered more clean VHQ MAGs than the 90/5 run. For MAGScoT and
+  UniteM the thresholds are a hard filter applied to the selected bins, not a selection target, so
+  a stricter threshold removes genomes instead of choosing different versions of them: MAGScoT at
+  90/5 kept 30 clean VHQ MAGs on the faecal-transplant series against 56 at its defaults. UniteM's
+  two runs gave the same bin counts on every dataset.
+
+MetaWrap2 recovered the most clean VHQ MAGs on the faecal-transplant series (63 against 62 for
+Binette), CAMI3 toy (233 against 226) and CAMI2 oral (247 against 242), tied with Binette on CAMI2
+gastrointestinal (173), and was second on Hadza (153 against 155 for Binette) and CAMI2 skin (193
+against 196). Against its own 70/10 run it gained on every dataset: 143 to 153 on Hadza, 61 to 63
+on the faecal-transplant series, 242 to 247 on oral, 170 to 173 on gastrointestinal, 189 to 193 on
+skin and 230 to 233 on CAMI3 toy.
+
+Share of final bins failing GUNC in the 90/5 runs:
+
+| | CAMI2 gastrointestinal | CAMI2 oral | CAMI2 skin | CAMI3 toy | Hadza | faecal transplant |
+|---|---:|---:|---:|---:|---:|---:|
+| MetaWrap2 | 1.7% (3 / 176) | 1.6% (4 / 251) | 4.9% (10 / 203) | 4.5% (11 / 244) | 1.3% (2 / 155) | 6.0% (4 / 67) |
+| metaWRAP 1.3.0 | 1.7% (3 / 180) | 2.4% (6 / 254) | 3.8% (8 / 212) | 4.8% (12 / 251) | 3.2% (5 / 155) | 7.9% (5 / 63) |
+| Binette | 2.8% (5 / 178) | 3.2% (8 / 251) | 4.9% (10 / 204) | 8.1% (20 / 247) | 4.4% (7 / 159) | 10.1% (7 / 69) |
+| MAGScoT | 0.6% (1 / 168) | 2.5% (6 / 240) | 2.6% (5 / 192) | 5.4% (11 / 203) | 2.2% (2 / 93) | 15.0% (6 / 40) |
+| UniteM | 4.3% (10 / 235) | 11.6% (66 / 568) | 10.0% (39 / 389) | 18.2% (82 / 451) | 13.8% (76 / 550) | 23.0% (46 / 200) |
+
+At 90/5 MAGScoT's runs on CAMI2 gastrointestinal (0.6% against 1.7%) and skin (2.6% against 4.9%)
+have a lower share failing GUNC than MetaWrap2, at comparable bin counts (168 against 176, 192
+against 203); MetaWrap2 recovers 11 and 15 more clean VHQ MAGs there (173 against 162, 193 against
+178). metaWRAP 1.3.0's 90/5 run is also lower on CAMI2 skin (3.8%).
+
+**metaWRAP 1's method is subtractive.** Binning_refiner keeps a contig in a hybrid set only when
+every input set it combines has the contig in a bin, and groups contigs by the bins they share, so
+every candidate is an input bin or an intersection of input bins. On all six datasets every final
+bin of metaWRAP 1.3.0 is a subset of one input bin, and none holds a contig that no input bin had
+(between 85 and 226 final bins per dataset are an input bin unchanged). No final bin can hold more
+of a genome than the input bin it came from. Binette and MetaWrap2 also build unions, which can
+hold more of a genome than any one input bin.
+
+**MAGScoT and UniteM** return more bins than MetaWrap2 and Binette on every dataset, and more of
+their bins fail GUNC: on CAMI3 toy 29 (MAGScoT) and 82 (UniteM), against 13 for MetaWrap2. Neither
+recovers more clean HQ MAGs than MetaWrap2 on any dataset except MAGScoT on CAMI2
+gastrointestinal (191 against 190).
+
+**`--consolidator dastool`** costs 2.6–5.5x the CPU-hours of DAS Tool run on its own (2.57x on
+CAMI3 toy, 5.55x on CAMI2 gastrointestinal). MetaWrap2 skips hybridisation and the per-set CheckM
+runs for this consolidator, but prepares the inputs and scores the consolidated set with CheckM,
+here CheckM1 on the full tree (peak memory 36.8–37.4 GB). It recovered as many or fewer clean HQ
+MAGs than DAS Tool alone on every dataset: 169 against 180 on Hadza, 73 against 73 on the
+faecal-transplant series, and 1 or 2 fewer on CAMI.
+
+The `--consolidator dastool` arm ran development code based on 2.1.3, whose default scorer was
+CheckM1 on the full genome tree; in this release that is `--checkm1 --full-tree`, and `--checkm1`
+alone uses the reduced tree.
 
 ## 6. Bin abundance
 
@@ -432,7 +689,7 @@ Values are not interchangeable across quantifiers:
 
 ## 7. Smaller changes
 
-- `read_qc` trims with fastp: 1.0% more bases and 0.4% more Q30 bases kept for 5.8% less CPU
+- `read_qc` trims with fastp: 0.83% more bases and 0.4% more Q30 bases kept for 5.8% less CPU
   (cutadapt stops scaling at 4 threads). Trim Galore remains supported and peaks at 0.1 GB of memory
   against fastp's 1.4.
 - `reassemble_bins --max-coverage` (default 50) thins each bin's recruited reads to 50× of its
@@ -484,7 +741,7 @@ results table, and the affected sections need re-scoring.
 
 - `read_qc` figures are one mate's count: measurements are keyed on (dataset, comparison, variant,
   sample, metric), so the per-mate rows collapsed to the last mate. `reads_kept`, `bases_kept` and
-  `q30_bases_kept` in §7 are half the real counts; both arms are halved, so the 1.0%/0.4% margins hold.
+  `q30_bases_kept` in §7 are half the real counts; both arms are halved, so the 0.83%/0.4% margins hold.
 - A refinement arm used only three of its bin sets, alphabetically: the runner zipped the bin
   directories onto `("-A", "-B", "-C")`, and `zip` truncates. With
   `comebin/concoct/maxbin2/metabat2/semibin2/vamb` that drops metaBAT2. It also fed a previous
@@ -505,7 +762,8 @@ results table, and the affected sections need re-scoring.
 
 ## 9. Limitations
 
-Everything except §2.1 to §2.3 is CAMI2 gastrointestinal, mostly three samples. The identity floor
+Everything except §2.1 to §2.5 and the consolidator comparison in §5 is CAMI2 gastrointestinal,
+mostly three samples. The identity floor
 most needs re-testing elsewhere; it should matter less on self-assembled contigs, whose fragmented
 consensus already absorbs some strain variation.
 

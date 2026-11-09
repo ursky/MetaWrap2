@@ -23,7 +23,7 @@ def test_every_bin_set_reaches_refinement_and_a_leftover_answer_does_not(tmp_pat
     variant = Variant(name="dastool", args=("--consolidator", "dastool"))
     inputs = _runner.Inputs(pairs=[], assembly=str(assembly), bins_from=str(tmp_path))
     argv = _runner.build_argv(comparison, variant, inputs, str(tmp_path / "out"), 4, 8)
-    passed = {os.path.basename(argv[i + 1]) for i, tok in enumerate(argv) if tok == "--bins"}
+    passed = {os.path.basename(argv[i + 1]) for i, tok in enumerate(argv) if tok == "-b"}
     assert passed == {"%s_bins" % name for name in binners}
     assert "metawrap_70_10_bins" not in passed
     assert argv[argv.index("-a") + 1] == str(assembly)

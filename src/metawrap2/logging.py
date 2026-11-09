@@ -229,7 +229,13 @@ def warning(message: str) -> None:
     _emit(message, "*", logging.WARNING)
 
 
+#: The message of the last :func:`error`, so a run that stops on it can say why (RUN_INCOMPLETE).
+last_error: str = ""
+
+
 def error(message: str, exit_code: int = 1) -> NoReturn:
     """Print an error banner and exit, matching the shell ``error`` helper."""
+    global last_error
+    last_error = message
     _emit(message, "*", logging.ERROR)
     raise SystemExit(exit_code)
