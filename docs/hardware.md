@@ -32,16 +32,16 @@ machine, except under `--preset deep`, which trains SemiBin2 and COMEBin with `-
 `--device cuda` or `--device auto` turns the GPU on for any binner, and an explicit `--device`
 overrides the preset.
 
-Peak VRAM on a single device, sampled every 5 s on NVIDIA GPUs:
+Peak VRAM on a single device, sampled every 5 s on NVIDIA GPUs, in GiB:
 
-| Binner | Peak VRAM | Measured on | Grows with the assembly |
+| Binner | Peak VRAM (GiB) | Measured on | Grows with the assembly |
 |:---|---:|:---|:---|
-| VAMB | 0.56 GB | MetaHIT, 16,527 contigs | not measured |
-| SemiBin2 | 0.41-2.75 GB | CAMI2 skin, 16,936 and 63,376 contigs | yes, faster than linearly |
-| COMEBin | 5.71 GB | the same two skin samples | no, set by batch size |
+| VAMB | 0.56 | one run, input not recorded | not measured |
+| SemiBin2 | 0.41-2.75 | two CAMI2 skin samples (0.41 and 0.68), four CAMI gold assemblies (0.66-1.68), the 36-sample water co-assembly (2.75) | yes |
+| COMEBin | 5.71 | the two skin samples and the four gold assemblies | no, set by batch size |
 
-An 8 GB card runs all three on this data. For assemblies larger than these, allow more than
-2.75 GB for SemiBin2. COMEBin, which `--preset deep` adds, needs the most VRAM and gains the most
+An 8 GB card runs all three on this data. For assemblies larger than the water co-assembly, allow
+more than 2.75 GiB for SemiBin2. COMEBin, which `--preset deep` adds, needs the most VRAM and gains the most
 from a GPU. On CPU it ran for over 280 CPU-hours on three CAMI2 samples without finishing; metaBAT2
 and MaxBin2 together took 7.1 CPU-hours.
 

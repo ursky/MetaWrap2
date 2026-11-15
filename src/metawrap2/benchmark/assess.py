@@ -24,6 +24,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from .. import checkm as _checkm
 from .. import config as _config
 from .. import gunc as _gunc
+from .. import scorecache as _scorecache
 from ..command import run as _run
 from ..constants import BIN_EXTENSION, is_refined_bins_dirname
 from ..io.seqio import fasta_files
@@ -473,6 +474,8 @@ def run_bin_quality(
     checkm2: bool = True,
     env: Optional[str] = None,
     checkm2_env: Optional[str] = None,
+    score_cache: bool = True,
+    say=None,
 ) -> List[str]:
     """Run CheckM over each of *bin_dirs_*, returning the stats files written.
 
@@ -485,14 +488,27 @@ def run_bin_quality(
     over 20 Mb and held 11.8% of the sequence, which drives CheckM's cost. Bins do not recur across
     a variant's sets, so each call gets its own cache. The cache is named after the scorer
     (:data:`SCORE_CACHE`), so CheckM1 scores are never read back as CheckM2 scores.
+
+    Bins scored before with the same scorer, version and database (by a module run or an earlier
+    assessment) are reused from the shared score cache (:mod:`metawrap2.scorecache`) unless
+    *score_cache* is False or ``[settings] score_cache_dir`` is empty.
     """
     scorer = "checkm2" if checkm2 else "checkm1"
+    settings = _config.load_settings()
+    shared = _scorecache.open_for_run(
+        settings.score_cache_dir,
+        settings.databases,
+        enabled=score_cache,
+        scorer=scorer,
+        env=(checkm2_env or env) if checkm2 else env,
+        say=say,
+    )
     written = []
     for path in bin_dirs_:
         written.append(
             _checkm.run_checkm_cached(
                 path,
-                cache=_checkm.BinScoreCache(path + SCORE_CACHE % scorer),
+                cache=_checkm.BinScoreCache(path + SCORE_CACHE % scorer, shared=shared),
                 threads=threads,
                 mem_gb=memory_gb,
                 env=env,

@@ -889,13 +889,12 @@ def _coassembly_steps(
         )
 
     if "bin_refinement" in study.steps:
-        # Pass only the bin sets binning produces, as repeated --bins (documented for generated
-        # arguments). A fixed -A/-B/-C failed when other binners were selected, and the letters
-        # stop at F.
+        # Pass only the bin sets binning produces, one -b each, so a path is never split on a
+        # comma. A fixed -A/-B/-C failed when other binners were selected.
         selected = selected_binners(binning_opts)
         argv = ["-o", layout.refinement_dir]
         for binner in selected:
-            argv += ["--bins", layout.binner_bins(binner)]
+            argv += ["-b", layout.binner_bins(binner)]
         steps.append(
             Step(
                 name="bin_refinement",
@@ -1098,7 +1097,7 @@ def _cohort_steps(
         for sample in samples:
             argv = ["-o", layout.sample_refinement_dir(sample)]
             for binner in selected:
-                argv += ["--bins", layout.sample_binner_bins(sample, binner)]
+                argv += ["-b", layout.sample_binner_bins(sample, binner)]
             steps.append(
                 Step(
                     name="bin_refinement:%s" % sample,

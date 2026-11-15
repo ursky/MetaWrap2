@@ -204,7 +204,7 @@ def draw(
     directory = os.path.dirname(os.path.abspath(out_path))
     if directory:
         os.makedirs(directory, exist_ok=True)
-    figure.savefig(out_path, dpi=150, bbox_inches="tight")
+    figure.savefig(out_path, dpi=300, bbox_inches="tight")
     plt.close(figure)
     return out_path
 

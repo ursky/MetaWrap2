@@ -34,7 +34,20 @@ def _assembly_effective(ns):
     return out
 
 
-RESOLVERS = {"assembly": _assembly_effective}
+def _bin_refinement_effective(ns):
+    """bin_refinement.resolve_consolidator: no --consolidator (and no metaWRAP 1-only option)
+    means the default consolidator, and --refine-combinations defaults after that."""
+    from metawrap2.modules import bin_refinement
+
+    out = dict(ns)
+    if out["consolidator"] is None and not out["mw1_refinement"]:
+        out["consolidator"] = bin_refinement.DEFAULT_CONSOLIDATOR
+    if out["refine_combinations"] is None:
+        out["refine_combinations"] = bin_refinement.DEFAULT_COMBINATIONS
+    return out
+
+
+RESOLVERS = {"assembly": _assembly_effective, "bin_refinement": _bin_refinement_effective}
 
 
 def _parsed(module, argv):

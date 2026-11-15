@@ -17,9 +17,9 @@ metawrap2 quickstart -t 8
 
 On stock RHEL 8 or older Ubuntu, `python3` is 3.9 and `pip install .` fails at once with
 `requires a different Python: 3.9.x not in '>=3.10'`. Current Miniforge provides
-Python 3.14; `pip install .` took 17 seconds on a fresh install. mamba must also be on `PATH` when a
-module runs, which unattended jobs do not set up; see
-[mamba on PATH at run time](#mamba-on-path-at-run-time).
+Python 3.14; `pip install .` took 17 seconds on a fresh install. Unattended jobs often have no mamba on
+`PATH`; see [Finding mamba at run time](#finding-mamba-at-run-time) for where else MetaWrap2
+looks.
 
 `quickstart` builds and verifies every module's conda environment, then lists the databases each
 module needs (550 MB to ~300 GB each). It downloads databases only when asked:
@@ -183,7 +183,8 @@ downloader's exit code in words. Set `METAWRAP2_ARIA2C=` (empty) to force `curl`
 host rate-limits several connections.
 
 Before it starts, `install-db` prints the space needed and the disk ceiling (`max_disk_fraction`
-under `[limits]` in the config, or `--max-disk-fraction`). For GTDB-Tk, GUNC, eggNOG and SingleM
+and `min_free_disk_gb` under `[limits]` in the config, or `--max-disk-fraction` and
+`--min-free-disk-gb`). For GTDB-Tk, GUNC, eggNOG and SingleM
 the archive is deleted only after unpacking, so the space needed counts the download and the
 unpacked size together (220 GB for GTDB-Tk).
 
@@ -284,14 +285,21 @@ metawrap2 config migrate /path/to/old-config -o ~/.metawrap2/config.toml
 This keeps database paths, drops obsolete settings with a reason, and flags paths missing on this
 machine. The old file is parsed and not executed.
 
-### mamba on PATH at run time
+### Finding mamba at run time
 
-Tools run as `mamba run -n metawrap2-<module> ...`, so `mamba` must be on PATH at run time.
-Interactive shells get it from `~/.bashrc`; `nohup`, `cron`, `sbatch` and CI jobs usually do not.
-For unattended runs:
+Tools run as `mamba run -n metawrap2-<module> ...`. Interactive shells get `mamba` on PATH from
+`~/.bashrc`; `nohup`, `cron`, `sbatch` and CI jobs usually do not. When `mamba` is not on PATH,
+MetaWrap2 looks, in order, at:
 
-```bash
-export PATH="$HOME/miniforge3/bin:$PATH"     # wherever mamba lives
+1. `env_manager` under `[settings]` in the config, a path to the mamba or conda executable;
+2. `$MAMBA_EXE`, then `$CONDA_EXE`;
+3. `bin/` and `condabin/` under `~/miniforge3`, `~/mambaforge`, `~/miniconda3`, `~/anaconda3` and
+   `~/micromamba`, for mamba and then conda.
+
+```toml
+[settings]
+env_manager = "/opt/miniforge3/bin/mamba"    # wherever mamba lives
 ```
 
-Without it, the run stops before any tool starts and suggests this or `use_conda_envs = false`.
+If none is found, the run stops before any tool starts, lists where it looked, and suggests
+`env_manager`, `$MAMBA_EXE`, adding mamba's directory to PATH, or `use_conda_envs = false`.

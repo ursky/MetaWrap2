@@ -13,7 +13,7 @@ import json
 import os
 import shutil
 import threading
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from . import mimag as _mimag
 from .cmdtemplate import fill_command
@@ -404,6 +404,8 @@ def run_checkm(
         )
     checkm_out = bins_dir + ".checkm"
     tmp = checkm_tmpdir(bins_dir)
+    with _REDUCED_FALLBACK_LOCK:
+        _REDUCED_FALLBACK.discard(os.path.abspath(bins_dir))
     _checkm1(bins_dir, checkm_out, tmp, threads, mem_gb, env, reduced_tree, log_path, pplacer=None)
 
     stats_path = bins_dir + STATS_SUFFIX
@@ -440,6 +442,8 @@ def run_checkm(
             "run_commands.txt"
         )
         tmp = _clear_checkm_attempt(bins_dir, checkm_out, tmp)
+        with _REDUCED_FALLBACK_LOCK:
+            _REDUCED_FALLBACK.add(os.path.abspath(bins_dir))
         _checkm1(
             bins_dir,
             checkm_out,
@@ -527,27 +531,37 @@ def implausible_reason(total_bp: int, n50: int = 0) -> Optional[str]:
 def bin_identity(path: str) -> str:
     """A content key for a bin, so the same set of contigs is scored only once.
 
-    A hash of the sorted contig ids. Sorting handles hybrid sets that list the same contigs in a
-    different order; contig ids identify the sequence within a run.
+    A hash of the sorted contig ids, each paired with a hash of its sequence. Sorting handles hybrid
+    sets that list the same contigs in a different order. The sequence hash keeps apart bins from
+    different sources that reuse contig names (``score`` over several pipelines' bins, where two
+    single-contig genomes can both be called ``>1``).
 
     On a three-binner refinement, 840 of the 1,230 bins across the seven hybrid sets were distinct,
     so 32% of CheckM calls re-scored a bin already scored.
     """
     from .io.seqio import contig_id, iter_fasta
 
-    ids = sorted(contig_id(header) for header, _seq in iter_fasta(path))
+    ids = sorted(
+        "%s:%s" % (contig_id(header), hashlib.sha1(seq.encode()).hexdigest())
+        for header, seq in iter_fasta(path)
+    )
     return hashlib.sha1("\n".join(ids).encode()).hexdigest()
 
 
 class BinScoreCache:
-    """Remembers what CheckM said about a bin, keyed by the bin's contents.
+    """Remembers what CheckM said about a bin, keyed by the bin's contigs (:func:`bin_identity`).
 
     Lives for one `bin_refinement` run, whose hybrid sets overlap heavily. Saved beside the output
     so ``--resume`` can reuse it. Guarded by a lock because bin sets can be scored in parallel.
+
+    *shared* is the cache kept between runs (:class:`metawrap2.scorecache.SharedScoreCache`). A bin
+    not found in this run's rows is looked up there by its sequences, and each newly scored bin is
+    added to it when this cache is saved.
     """
 
-    def __init__(self, path: Optional[str] = None) -> None:
+    def __init__(self, path: Optional[str] = None, shared=None) -> None:
         self.path = path
+        self.shared = shared
         self.rows: Dict[str, List[str]] = {}
         self.lock = threading.RLock()
         self.hits = self.misses = self.skipped = 0
@@ -559,7 +573,30 @@ class BinScoreCache:
                 # A truncated cache is discarded and the bins are re-scored.
                 self.rows = {}
 
+    def lookup(self, key: str, path: str, binner: Optional[str] = None) -> Optional[List[str]]:
+        """The row for the bin at *path* (key *key*): from this run, else from the shared cache.
+
+        A row found in the shared cache is added to this run's rows, named after *path*, with a
+        *binner* column if one is given. Counts nothing in :attr:`hits`; callers do.
+        """
+        with self.lock:
+            known = self.rows.get(key)
+        if known is not None or self.shared is None:
+            return known
+        from .scorecache import content_identity
+
+        values = self.shared.get(content_identity(path))
+        if values is None:
+            return None
+        row = [os.path.splitext(os.path.basename(path))[0]] + values
+        if binner is not None:
+            row.append(binner)
+        with self.lock:
+            return self.rows.setdefault(key, row)
+
     def save(self) -> None:
+        if self.shared is not None:
+            self.shared.flush()
         if not self.path:
             return
         try:
@@ -582,7 +619,7 @@ class BinScoreCache:
         total = self.hits + self.misses + self.skipped
         if not total:
             return "no bins scored"
-        return (
+        text = (
             "%d bin(s): %d scored, %d reused from an identical bin, %d skipped as implausible"
             % (
                 total,
@@ -591,6 +628,9 @@ class BinScoreCache:
                 self.skipped,
             )
         )
+        if self.shared is not None:
+            text += " (shared score cache: %s)" % self.shared.summary()
+        return text
 
 
 def run_checkm_cached(
@@ -606,6 +646,8 @@ def run_checkm_cached(
     Writes the same ``<bins_dir>.stats`` as :func:`run_checkm`. Differences in what CheckM scores:
 
     * a bin whose contigs match one already scored in this run reuses that score (`bin_identity`);
+    * with ``cache.shared`` set, a bin whose sequences match one scored by an earlier run with the
+      same scorer configuration reuses that score (see :mod:`metawrap2.scorecache`);
     * a bin that cannot pass 70/10 on size is not scored (`implausible_reason`) and is recorded as
       failing so nothing downstream selects it;
     * the remaining bins are staged as symlinks in a directory and passed to CheckM.
@@ -641,11 +683,10 @@ def run_checkm_cached(
             )
             continue
         key = bin_identity(path)
-        with cache.lock:
-            known = cache.rows.get(key)
-            if known is not None:
-                cache.hits += 1
+        known = cache.lookup(key, path, binner)
         if known is not None:
+            with cache.lock:
+                cache.hits += 1
             reused.append([name] + list(known[1:]))
             continue
         todo.append(path)
@@ -700,6 +741,8 @@ def plan_scoring(
             if key in claimed:
                 continue
             claimed.add(key)
+            if cache.shared is not None and cache.lookup(key, path) is not None:
+                continue  # scored by an earlier run
             todo.append(path)
         plan[directory] = todo
     return plan
@@ -754,9 +797,26 @@ def _remember(cache: BinScoreCache, bins: List[str], stats_path: str) -> None:
             if line.strip():
                 row = line.rstrip("\n").split("\t")
                 by_name[row[0]] = row
+    # Scores from CheckM1's reduced-tree fallback are not shared: they were asked for on the full
+    # tree and are filed under it.
+    share = cache.shared is not None and not _fell_back(stats_path[: -len(STATS_SUFFIX)])
     for path in bins:
         name = os.path.splitext(os.path.basename(path))[0]
         found = by_name.get(name)
         if found is not None:
             with cache.lock:
                 cache.rows[bin_identity(path)] = found
+            if share and len(found) >= 7:
+                from .scorecache import content_identity
+
+                cache.shared.put(content_identity(path), found[1:7])
+
+
+#: Bin directories whose full-tree CheckM1 run fell back to the reduced tree in this process.
+_REDUCED_FALLBACK: Set[str] = set()
+_REDUCED_FALLBACK_LOCK = threading.Lock()
+
+
+def _fell_back(bins_dir: str) -> bool:
+    with _REDUCED_FALLBACK_LOCK:
+        return os.path.abspath(bins_dir) in _REDUCED_FALLBACK

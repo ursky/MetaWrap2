@@ -8,10 +8,14 @@ abundance. Each module runs on its own.
 
 MetaWrap2 succeeds metaWRAP. Its first release reproduced metaWRAP's pipeline with the same
 algorithms, tools and thresholds, so existing analyses could be migrated and checked against it.
-Golden tests still pin that baseline. Five defaults have since changed, each based on a benchmark.
+Golden tests still pin that baseline. Six defaults have since changed, each based on a benchmark.
 The default configuration recovers more near-complete bins than metaWRAP 1 on the three CAMI2 sites
 and more clean MAGs on all four real datasets, but fewer near-complete bins on the CAMI3 toy dataset
-and on the three-sample real dataset. `--preset deep` recovers more on every dataset.
+and on the three-sample real dataset. `--preset deep` recovers more on every dataset. On the CAMI
+gold assemblies and the 50-sample gut and 36-sample water datasets, the metaWRAP 1 arm is metaWRAP
+1.3.0's refinement of metaBAT2, MaxBin2 and CONCOCT bins made through MetaWrap2. Except for
+`--preset deep` on the one- and three-sample gut datasets, MetaWrap2 was measured with the 2.1.5
+bin consolidator, now `--mw1-refinement`.
 
 ![Synthetic communities: CAMI2 and CAMI3](figures/synthetic_benchmarks.png)
 

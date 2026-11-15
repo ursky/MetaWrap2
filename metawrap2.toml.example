@@ -8,6 +8,10 @@
 # threads = 8
 # Set false to run tools directly off your PATH instead of per-module conda envs.
 use_conda_envs = true
+# Bin scores are kept here between runs, so a bin with the same sequences, scored by the same
+# CheckM version, database and options, is not scored again. Set to "" to turn this off;
+# --no-score-cache turns it off for one run.
+# score_cache_dir = "~/.metawrap2/score_cache"
 
 [limits]
 # How much of this machine one MetaWrap2 run may take. The defaults below apply if this section
@@ -19,8 +23,10 @@ use_conda_envs = true
 # max_thread_fraction = 0.5   # fraction of cores
 # Share of RAM a run may use; an unset -m resolves to this.
 # max_memory_fraction = 0.8   # fraction of RAM
-# Stop the run if a filesystem it writes to gets fuller than this.
+# Stop the run if a filesystem it writes to gets fuller than this and has no more than
+# min_free_disk_gb free. On a large volume the free space decides; 0 makes the fraction decide.
 # max_disk_fraction = 0.7     # fraction full
+# min_free_disk_gb = 200      # GB
 # How many GPUs a run may use. Unset means every GPU this machine has; 0 means none.
 # max_gpus = 0                # GPUs
 # Refuse a GPU step when another process already holds the card. Use for benchmarks: a shared

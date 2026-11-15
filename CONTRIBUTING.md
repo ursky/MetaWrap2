@@ -74,6 +74,7 @@ new output.
   `.pre-commit-config.yaml`. A test fails if the two disagree; bump both together.
 - Write documentation in the present tense. Give one reason where a choice is surprising. Avoid
   paired "X rather than Y" unless a reader would otherwise do the wrong thing.
+- Every figure is at least 300 dpi: the PNGs in `docs/figures/` and every plot a module writes.
 - Every module-level import must be a declared dependency, in both `pyproject.toml` and
   `conda_pkg/meta.yaml`, which a test checks. Import an optional dependency inside the function
   that needs it.

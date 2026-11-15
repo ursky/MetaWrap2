@@ -159,6 +159,9 @@ class RunRecorder:
     #: Measured wall time, CPU time and peak memory, as ``metawrap2.usage`` records them. Set by
     #: ``finalize``; written into the lineage step and provenance.txt.
     usage: Dict[str, Any] = field(default_factory=dict)
+    #: Further top-level entries for run_config.json, set by the code that knows them (the shared
+    #: score cache records its hits here). A callable is called when the file is written.
+    extra: Dict[str, Any] = field(default_factory=dict)
     _t0: float = field(default_factory=time.time)
 
     def elapsed(self) -> float:
@@ -257,6 +260,8 @@ class RunRecorder:
             "commands": list(self.commands),
             "lineage": lineage,
         }
+        for key, value in self.extra.items():
+            config.setdefault(key, value() if callable(value) else value)
         with open(os.path.join(output_dir, CONFIG_NAME), "w") as fh:
             json.dump(config, fh, indent=2)
 

@@ -155,3 +155,74 @@ def test_a_monitor_stopped_mid_sample_does_not_interrupt_the_next_step(monkeypat
 
     assert not interrupts, "interrupted the main thread after the step it was watching had finished"
     assert monitor.tripped is None
+
+
+# --- the disk ceiling: fraction full and absolute free space ----------------------------------
+
+
+def _disk(monkeypatch, total_gb, free_gb):
+    from collections import namedtuple
+
+    usage = namedtuple("usage", "total used free")
+    gb = 1024**3
+    monkeypatch.setattr(
+        limits.shutil,
+        "disk_usage",
+        lambda _path: usage(int(total_gb * gb), int((total_gb - free_gb) * gb), int(free_gb * gb)),
+    )
+
+
+def _state(tmp_path, **table):
+    return limits.disk_state(str(tmp_path), limits.resolve(limits.config_from_table(table)))
+
+
+def test_a_large_filesystem_over_the_fraction_with_terabytes_free_is_not_stopped(
+    tmp_path, monkeypatch
+):
+    """10 TB, 74% full: 2.5 TB free is far above the 200 GB floor, so the run goes on."""
+    _disk(monkeypatch, total_gb=10000, free_gb=2600)
+    state = _state(tmp_path)
+    assert state.fraction_used > limits.DEFAULT_DISK_FRACTION
+    assert not state.over
+    assert state.headroom_bytes == state.free_bytes - 200 * 1024**3
+    text = state.describe()
+    assert "74% full" in text and "2.5 TB free" in text
+    assert "ceiling 70% unless more than 200.0 GB is free" in text
+
+
+def test_a_large_filesystem_stops_once_free_space_reaches_the_floor(tmp_path, monkeypatch):
+    _disk(monkeypatch, total_gb=10000, free_gb=150)
+    state = _state(tmp_path)
+    assert state.over and state.headroom_bytes == 0
+    ok, message = limits.check_ceiling([str(tmp_path)], limits.resolve(limits.LimitsConfig()))
+    assert not ok and "150.0 GB free" in message
+
+
+def test_a_small_filesystem_still_stops_at_the_fraction(tmp_path, monkeypatch):
+    """500 GB, 75% full: 125 GB free is under the floor, so the fraction decides as before."""
+    _disk(monkeypatch, total_gb=500, free_gb=125)
+    assert _state(tmp_path).over
+    _disk(monkeypatch, total_gb=500, free_gb=200)  # 60% full: below the fraction
+    state = _state(tmp_path)
+    assert not state.over
+    assert state.headroom_bytes == int(500 * 1024**3 * 0.7) - 300 * 1024**3
+
+
+def test_a_floor_of_zero_gives_the_fraction_alone(tmp_path, monkeypatch):
+    _disk(monkeypatch, total_gb=10000, free_gb=2600)
+    state = _state(tmp_path, min_free_disk_gb=0)
+    assert state.over and state.headroom_bytes == 0
+    assert "(ceiling 70%, 0.0 B of headroom)" in state.describe()
+
+
+def test_min_free_disk_gb_is_validated_and_overridable(tmp_path, monkeypatch):
+    assert limits.config_from_table({"min_free_disk_gb": 50}).min_free_disk_gb == 50
+    assert "min_free_disk_gb" in limits.LIMITS_KEYS
+    with pytest.raises(limits.LimitsError, match="0 or more"):
+        limits.config_from_table({"min_free_disk_gb": -1})
+    try:
+        limits.set_override("min_free_disk_gb", "1000")
+        assert limits.resolve().min_free_bytes == 1000 * 1024**3
+    finally:
+        limits.clear_overrides()
+    assert limits.resolve().as_dict()["min_free_bytes"] == 200 * 1024**3

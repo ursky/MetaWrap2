@@ -45,6 +45,7 @@ from ..io.seqio import fasta_files
 from ..modules import bin_refinement as _refinement_module
 from ..modules._common import (
     absolutize_paths,
+    add_score_cache_arg,
     announcement,
     comm,
     dry_run,
@@ -53,6 +54,7 @@ from ..modules._common import (
     error,
     finish_run,
     memory_arg,
+    open_score_cache,
     optional_env_for,
     resolve_memory_gb,
     resolve_threads,
@@ -75,6 +77,15 @@ SKIP_GUNC_FLAG = "--no-gunc"
 #: hash of the bin's contigs (see :class:`metawrap2.checkm.BinScoreCache`), so a ``--resume`` that
 #: toggles ``--checkm1`` must not read the other estimator's scores.
 SCORE_CACHE = "checkm_scores.%s.json"
+
+#: The message for an output directory that already holds a ``score`` run. The first ``%s`` is
+#: the score cache file name, the second (``%%s``) the output directory.
+EXISTING_OUTPUT_HINT = (
+    "Output directory '%%s' already contains a metawrap2 score run.\n"
+    "To continue it, run the same command again with --resume: genomes already scored are read "
+    "back from %s in that directory and not scored again, and GUNC and the tables are redone.\n"
+    "To replace it, add --force. To keep it, choose a new -o."
+)
 
 #: The near-complete tier (90/5) shown in the comparison table, and its thresholds. Taken from
 #: :data:`metawrap2.benchmark.scoring.QUALITY_TIERS`, so the count matches ``docs/benchmarks.md``.
@@ -172,6 +183,7 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         help="score every genome with CheckM, including ones too small to pass. Without it, those "
         "are recorded as 0/100 completeness/contamination without being scored",
     )
+    add_score_cache_arg(p)
     p.add_argument("--config", help="path to metawrap2.toml")
     args = p.parse_args(argv)
     if _looks_like_number(args.extension):
@@ -518,13 +530,29 @@ def main(argv: List[str]) -> int:
             % (gunc_db or "<not set>", _gunc.db_hint(SKIP_GUNC_FLAG))
         )
 
-    rec = start_run("score", args, env, settings, inputs=list(args.bin_dirs))
+    scorer = "checkm1" if args.checkm1 else "checkm2"
+    rec = start_run(
+        "score",
+        args,
+        env,
+        settings,
+        inputs=list(args.bin_dirs),
+        existing_output_hint=EXISTING_OUTPUT_HINT % (SCORE_CACHE % scorer),
+    )
     try:
         names = set_names(args.bin_dirs)
         # One cache for all bin sets: bin sets refined from one assembly often share identical
-        # bins, and a score depends only on the contigs. Kept under -o for --resume.
+        # bins, and a score depends only on the contigs. Kept under -o for --resume. Scores from
+        # earlier runs come from the shared cache (metawrap2.scorecache), unless --no-score-cache.
+        # `score --checkm1` places bins in the full tree.
         cache = _checkm.BinScoreCache(
-            os.path.join(args.output, SCORE_CACHE % ("checkm1" if args.checkm1 else "checkm2"))
+            os.path.join(args.output, SCORE_CACHE % scorer),
+            shared=open_score_cache(
+                args,
+                settings,
+                scorer,
+                env=env if args.checkm1 else (checkm2_env or env),
+            ),
         )
         announcement("SCORING %d BIN SET(S)" % len(args.bin_dirs))
         results = [

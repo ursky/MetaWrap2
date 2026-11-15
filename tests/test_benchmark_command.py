@@ -104,7 +104,7 @@ def test_run_without_an_env_manager_stops_before_the_first_variant(tmp_path, mon
     rc = cmd.main(["run", "tiny", "binner_set", "-o", str(tmp_path / "work")])
     out = capsys.readouterr().out
     assert rc == 1
-    assert "not on PATH" in out
+    assert "was not found" in out and "env_manager" in out
     assert not os.path.exists(tmp_path / "work" / "binner_set.run.json")
 
 

@@ -17,8 +17,17 @@ def _conda_env_policy(request, tmp_path_factory, monkeypatch):
     """
     wanted = request.node.get_closest_marker("conda_envs") is not None
     path = tmp_path_factory.mktemp("config") / "metawrap2.toml"
-    path.write_text("[settings]\nuse_conda_envs = %s\n" % ("true" if wanted else "false"))
+    # The shared score cache is off, so no test reads or writes scores kept between runs. A test
+    # that writes its own config without the key gets a temporary default directory instead.
+    path.write_text(
+        '[settings]\nuse_conda_envs = %s\nscore_cache_dir = ""\n' % ("true" if wanted else "false")
+    )
     monkeypatch.setenv("METAWRAP2_CONFIG", str(path))
+    from metawrap2 import scorecache
+
+    monkeypatch.setattr(
+        scorecache, "DEFAULT_DIR", str(tmp_path_factory.mktemp("score_cache_default"))
+    )
 
 
 #: Fake machine seen by every test: 32 cores, 128 GB, no GPU, 1.8 TB free of 2 TB. It is larger
@@ -26,6 +35,21 @@ def _conda_env_policy(request, tmp_path_factory, monkeypatch):
 TEST_MACHINE_CORES = 32
 TEST_MACHINE_MEMORY = 128 * 1024**3
 TEST_DISK = (2 * 1024**4, 200 * 1024**3, 2 * 1024**4 - 200 * 1024**3)  # total, used, free
+
+
+@pytest.fixture(autouse=True)
+def _no_env_manager_off_path(monkeypatch):
+    """Find mamba or conda on PATH only, as on a clean CI runner.
+
+    Off PATH, the command runner also looks in $MAMBA_EXE, $CONDA_EXE and the usual install
+    locations, which differ between machines. Tests of that search set them up themselves.
+    """
+    from metawrap2 import command
+
+    monkeypatch.delenv("MAMBA_EXE", raising=False)
+    monkeypatch.delenv("CONDA_EXE", raising=False)
+    monkeypatch.setattr(command, "ENV_MANAGER_ROOTS", ())
+    monkeypatch.setattr(command, "_configured_env_manager", "")
 
 
 @pytest.fixture(autouse=True)

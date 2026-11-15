@@ -233,7 +233,7 @@ def main():
         fontsize=18,
         title_fontsize=20,
     )
-    fig.savefig("%s.%s.png" % (input_file, taxlevel), dpi=100)
+    fig.savefig("%s.%s.png" % (input_file, taxlevel), dpi=300)
     plt.close(fig)
 
 

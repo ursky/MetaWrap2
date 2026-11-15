@@ -112,9 +112,11 @@ def test_a_dry_run_of_gtdbtk_asks_for_twice_its_size(tmp_path, capsys, planning)
 
 
 def test_a_need_above_the_headroom_is_warned_about():
-    # 1000 GB disk, 400 GB used, 70% ceiling: 300 GB of headroom.
+    # 1000 GB disk, 400 GB used, 70% ceiling and 200 GB kept free: 300 GB below the fraction, but
+    # 400 GB before the free space falls to 200 GB, so 400 GB of headroom.
     assert "WARNING" not in install_db._disk_line("/tmp", 220.0)
-    assert "WARNING" in install_db._disk_line("/tmp", 400.0)
+    assert "WARNING" not in install_db._disk_line("/tmp", 350.0)
+    assert "WARNING" in install_db._disk_line("/tmp", 450.0)
 
 
 # --- the SingleM note ---------------------------------------------------------------------

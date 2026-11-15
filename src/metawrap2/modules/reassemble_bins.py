@@ -27,6 +27,7 @@ from ..pyrun import PY
 from ._common import (
     absolutize_paths,
     add_checkm2_only_args,
+    add_score_cache_arg,
     announcement,
     check_disk_space,
     check_fastq,
@@ -43,6 +44,7 @@ from ._common import (
     listdir,
     make_checkpoint,
     memory_arg,
+    open_score_cache,
     output_existed,
     require_nonempty_dir,
     resolve_memory_gb,
@@ -186,6 +188,7 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         help="don't run CheckM to assess bins",
     )
     add_checkm2_only_args(p, "reassemble_bins")
+    add_score_cache_arg(p)
     p.add_argument(
         "--parallel",
         action="store_true",
@@ -528,26 +531,39 @@ def _summary_message(names: Sequence[str]) -> str:
     )
 
 
-def _score(args, bins_dir: str, checkm2_env: Optional[str]) -> str:
-    """Score *bins_dir* with CheckM2 and return its ``.stats`` path."""
-    return _checkm.run_checkm(
-        bins_dir,
-        threads=args.threads,
-        mem_gb=args.memory,
-        env=None,
-        checkm2=True,
-        checkm2_env=checkm2_env,
+def _score(args, bins_dir: str, checkm2_env: Optional[str], shared=None) -> str:
+    """Score *bins_dir* with CheckM2 and return its ``.stats`` path.
+
+    With *shared* (the score cache kept between runs), bins scored by an earlier run, or by the
+    first scoring pass of this one, are not scored again. Every bin is scored; there is no size
+    filter here.
+    """
+    kwargs = {
+        "threads": args.threads,
+        "mem_gb": args.memory,
+        "env": None,
+        "checkm2": True,
+        "checkm2_env": checkm2_env,
+    }
+    if shared is None:
+        return _checkm.run_checkm(bins_dir, **kwargs)
+    # A new per-call cache: contig names from separate SPAdes runs can repeat between bins, so
+    # only the shared cache, keyed on sequences, carries scores between the two passes.
+    return _checkm.run_checkm_cached(
+        bins_dir, cache=_checkm.BinScoreCache(shared=shared), prefilter=False, say=comm, **kwargs
     )
 
 
-def _run_checkm_stage(args, out: str, checkm2_env: Optional[str] = None) -> None:
+def _run_checkm_stage(
+    args, out: str, checkm2_env: Optional[str] = None, shared_scores=None
+) -> None:
     announcement("RUN CHECKM ON REASSEMBLED BINS")
     reassembled = os.path.join(out, "reassembled_bins")
     original_bins = os.path.join(out, "original_bins")
 
     if dry_run():
         ensure_dir(reassembled)
-        stats = _score(args, reassembled, checkm2_env)
+        stats = _score(args, reassembled, checkm2_env, shared_scores)
         run(
             fill_command(
                 CHOOSE_BEST_BIN,
@@ -578,7 +594,7 @@ def _run_checkm_stage(args, out: str, checkm2_env: Optional[str] = None) -> None
     comm("staged %d original bin(s) for scoring as the '%s' candidate" % (staged, ORIG_SUFFIX))
 
     comm("Running CheckM2 on the original and reassembled bins")
-    stats = _score(args, reassembled, checkm2_env)
+    stats = _score(args, reassembled, checkm2_env, shared_scores)
 
     announcement("FINDING THE BEST VERSION OF EACH BIN")
     best_dir = os.path.join(out, "reassembled_best_bins")
@@ -612,7 +628,7 @@ def _run_checkm_stage(args, out: str, checkm2_env: Optional[str] = None) -> None
 
     comm("Re-running CheckM on the best reassembled bins.")
     shutil.rmtree(reassembled + ".checkm", ignore_errors=True)
-    stats = _score(args, reassembled, checkm2_env)
+    stats = _score(args, reassembled, checkm2_env, shared_scores)
 
     comm("making reassembly N50, completion, and contamination summary plots.")
     orig_stats = os.path.join(out, "original_bins" + STATS_SUFFIX)
@@ -852,7 +868,10 @@ def main(argv: List[str]) -> int:
             comm("skipping bin reassembly (already done; --resume)")
 
         if args.run_checkm and ckpt.todo("checkm"):
-            _run_checkm_stage(args, out, checkm2_env)
+            # Bins scored by earlier runs (the original bins, after bin_refinement scored them) are
+            # reused from the shared score cache, unless --no-score-cache.
+            shared_scores = open_score_cache(args, settings, "checkm2", env=checkm2_env)
+            _run_checkm_stage(args, out, checkm2_env, shared_scores)
             ckpt.done("checkm")
         elif args.run_checkm:
             comm("skipping CheckM on reassembled bins (already done; --resume)")

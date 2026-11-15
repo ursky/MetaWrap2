@@ -267,11 +267,20 @@ low_utilisation_after_seconds = 300 # 0 turns the warning off
 low_utilisation_fraction = 0.33     # the share of the grant a step must keep busy
 ```
 
+## Score cache
+
+CheckM2 and CheckM1 scores are kept in `~/.metawrap2/score_cache` and reused by later runs of
+`bin_refinement`, `score`, `reassemble_bins` and `binning --run-checkm`. A bin is reused only when
+its sequences, the scorer, the tool version, the database and the translation-table setting all
+match; if the version or database cannot be identified, the run keeps its scores to itself. Set
+`score_cache_dir` under `[settings]` to move the cache, or to `""` to turn it off; `--no-score-cache`
+turns it off for one run. `run_config.json` records how many scores were reused.
+
 ## Resource limits
 
 A `[limits]` block in `~/.metawrap2/config.toml` sets threads, memory, disk ceiling and GPUs for
 every module. Defaults: half the cores, 80% of RAM, and stop when a filesystem the run writes to
-passes 70% full.
+passes 70% full and has less than 200 GB free.
 
 ```toml
 [limits]
@@ -279,8 +288,10 @@ passes 70% full.
 max_thread_fraction = 0.5
 # Share of the RAM; also what an unset -m resolves to.
 max_memory_fraction = 0.8
-# Stop a step when a filesystem it writes to passes this fraction full.
+# Stop a step when a filesystem it writes to passes this fraction full...
 max_disk_fraction = 0.7
+# ...and has less than this many GB free. 0: the fraction alone decides.
+min_free_disk_gb = 200
 # GPUs to use. Unset means every GPU present; 0 means none.
 max_gpus = 0
 # true refuses a GPU step on a card another process is using.
@@ -290,7 +301,7 @@ gpu_strict = false
 Each run prints its budget before starting:
 
 ```
-Resource budget: 16/32 threads, 102.4 GB/128.0 GB memory, disk ceiling 70%, 1/1 GPUs
+Resource budget: 16/32 threads, 102.4 GB/128.0 GB memory, disk ceiling 70% with under 200.0 GB free, 1/1 GPUs
 ```
 
 * The budget is divided: `metawrap2 run -j 4` gives each of four concurrent samples a quarter.
@@ -299,10 +310,18 @@ Resource budget: 16/32 threads, 102.4 GB/128.0 GB memory, disk ceiling 70%, 1/1 
 * `-t` and `-m` are capped to it, with a message naming the setting to raise. Unset, they resolve
   to the budget.
 * The disk ceiling is a hard stop. A run will not start above it, and a run that crosses it is
-  interrupted like Ctrl-C, so `--resume` continues from the last completed step.
+  interrupted like Ctrl-C, so `--resume` continues from the last completed step. On a large
+  filesystem the free space decides: a volume 70% full with terabytes free is not over the ceiling.
+* While a module runs, its output folder holds a `RUN_INCOMPLETE` file, removed when the run
+  finishes. A run that stops early (disk ceiling, error, Ctrl-C or a signal) leaves it, with the
+  step that stopped, the last finished step and the reason. Treat a folder that has it as
+  unfinished. The exit code is 1 after an error and 130 (128 plus the signal number for a signal)
+  after an interrupt, and the error's first line is also printed to stderr as
+  `metawrap2 <module>: error: ...`.
 
 Per-run global flags: `--max-threads`, `--max-thread-fraction`, `--max-memory-gb`,
-`--max-memory-fraction`, `--max-disk-fraction`, `--max-gpus` and `--gpu-strict`.
+`--max-memory-fraction`, `--max-disk-fraction`, `--min-free-disk-gb`, `--max-gpus` and
+`--gpu-strict`.
 `disk_check_interval` (seconds between disk checks inside a long step) is a `[limits]` setting;
 `--disk-check-interval` overrides it. The grant is recorded in the manifest, and `metawrap2 calibrate` compares it with the memory used.
 

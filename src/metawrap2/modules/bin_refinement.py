@@ -1,15 +1,17 @@
 """MetaWrap2 bin_refinement module: consolidate several bin sets into one refined set.
 
-Given any number of folders of bins produced from the same assembly (e.g. metaBAT2, MaxBin2,
-CONCOCT outputs), this hybridizes them with Binning_refiner, scores every candidate set with CheckM2
-(CheckM1 with ``--checkm1``), consolidates the best version of each bin, and dereplicates shared contigs. The algorithms are in
-:mod:`metawrap2.refinement` (consolidate/dereplicate) and :mod:`metawrap2.checkm` (CheckM); this
-module orchestrates them and keeps the original output layout.
+Given any number of folders of bins produced from the same assembly (e.g. metaBAT2, SemiBin2,
+COMEBin outputs), the default consolidator (:mod:`metawrap2.consolidation`) builds intersection, union and
+difference candidates from overlapping bins, scores every candidate with CheckM2 (CheckM1 with
+``--checkm1``), and keeps the best set of bins that share no contig.
 
-``--consolidator`` replaces the hybridize/score/consolidate steps with an external tool (currently
-DAS_Tool), which decides from single-copy genes in one pass. Both routes leave one bin set in
-``binsO``, and the remaining steps (re-scoring, the -c/-x cut, plots, final layout, GUNC) are the
-same, so the routes can be compared on NC MAGs recovered and cost.
+``--mw1-refinement`` uses metaWRAP 1's method instead, the default up to 2.1.5: it hybridizes the
+bin sets with Binning_refiner, scores every combined set, consolidates the best version of each bin
+and dereplicates shared contigs. Its algorithms are in :mod:`metawrap2.refinement`.
+``--consolidator dastool`` hands the input bin sets to DAS_Tool, which decides from single-copy
+genes in one pass. Every route leaves one bin set in ``binsO``, and the remaining steps (re-scoring,
+the -c/-x cut, plots, final layout, GUNC) are the same, so the routes can be compared on NC MAGs
+recovered and cost. CheckM is in :mod:`metawrap2.checkm`.
 
 External tool commands are in the COMMANDS block below and tunable numbers in the CONSTANTS block.
 """
@@ -20,12 +22,14 @@ import argparse
 import concurrent.futures
 import csv
 import itertools
+import json
 import os
 import shlex
 import shutil
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .. import checkm as _checkm
+from .. import consolidation as _consolidation
 from .. import gunc as _gunc
 from .. import mimag as _mimag
 from .. import recovery as _recovery
@@ -34,6 +38,7 @@ from ..cliformat import bounded_float, make_parser, percent
 from ..config import MODULE_ENVS, load_settings
 from ..constants import (
     BIN_EXTENSION,
+    CONTAMINATION_WEIGHT,
     CONTIGS_SUFFIX,
     FASTA_EXTENSIONS,
     MAX_BIN_SIZE,
@@ -53,6 +58,7 @@ from ..validate import check_fasta
 from ._common import (
     Raw,
     absolutize_paths,
+    add_score_cache_arg,
     add_scorer_args,
     announcement,
     comm,
@@ -67,6 +73,7 @@ from ._common import (
     listdir,
     make_checkpoint,
     memory_arg,
+    open_score_cache,
     quoted_words,
     require_nonempty_dir,
     resolve_memory_gb,
@@ -100,21 +107,48 @@ DEFAULT_MAX_CONTAM = 10  # -x; bins must stay below this % contamination
 # bin_refinement ignores bins outside this size range (bytes); see constants.py
 MIN_SIZE = MIN_BIN_SIZE  # 50 kb
 MAX_SIZE = MAX_BIN_SIZE  # 20 Mb
-#: Upper limit on input bin sets. CheckM runs on every combination, so cost grows quickly; this
-#: guards against accidental large runs and is not an algorithmic limit.
+#: Upper limit on input bin sets for --mw1-refinement. It refines and scores combinations of the
+#: sets, so cost grows quickly; this guards against accidental large runs and is not an algorithmic
+#: limit. The default consolidator and dastool take any number of sets.
 MAX_BIN_SETS = 6
+MW1_MAX_BIN_SETS = MAX_BIN_SETS
 #: Which bin-set combinations to build. "pairs-and-all" matches the original 2- and 3-set
 #: behaviour (every pair plus the all-way combination); see refinement_plan().
 COMBINATION_MODES = ("pairs-and-all", "pairs", "all")
 DEFAULT_COMBINATIONS = "pairs-and-all"
-#: How the bin sets are merged into one. "metawrap": hybridise every combination with
-#: Binning_refiner, score each with CheckM, and pick the best version of each bin. "dastool": score
-#: the input bins on single-copy genes and aggregate in one pass, a different accuracy/cost
-#: trade-off. "metawrap" is the default as the existing method; the comparison is still running. On
-#: per-sample bins so far, metawrap recovers 13 NC MAGs to DAS Tool's 10, for 4.52 CPU-hours
-#: against 0.62.
-CONSOLIDATORS = ("metawrap", "dastool")
-DEFAULT_CONSOLIDATOR = "metawrap"
+#: How the bin sets are merged into one.
+#:
+#: "metawrap2" (default): intersection, union and difference candidates over cliques of
+#: overlapping bins, all scored with CheckM, then disjoint bins selected by score with a lookahead
+#: guard (metawrap2.consolidation). Unions let a bin be more complete than any input version of it.
+#:
+#: "metawrap1" (--mw1-refinement): metaWRAP 1's method, the default up to 2.1.5. Binning_refiner
+#: intersections of every bin-set combination, each scored with CheckM, then the best version of
+#: each bin chosen by pairwise 80% overlap, and shared contigs dereplicated.
+#:
+#: "dastool": score the input bins on single-copy genes and aggregate in one pass, a different
+#: accuracy/cost trade-off. On per-sample bins, metaWRAP 1's method recovered 13 NC MAGs to DAS
+#: Tool's 10, for 4.52 CPU-hours against 0.62.
+CONSOLIDATORS = ("metawrap2", "dastool")
+#: metaWRAP 1's method, selected with --mw1-refinement and not listed among --consolidator's choices.
+MW1_CONSOLIDATOR = "metawrap1"
+DEFAULT_CONSOLIDATOR = "metawrap2"
+#: Older --consolidator values, still accepted: "hybrid" was the opt-in name of the default in
+#: development builds, and "metawrap" named metaWRAP 1's method when it was the default.
+CONSOLIDATOR_ALIASES = {"hybrid": "metawrap2", "metawrap": MW1_CONSOLIDATOR}
+#: The default consolidator's candidate pool (see metawrap2.consolidation): graph edge at 10% shared
+#: contigs, partners within 4x of each other's length, cliques of up to 3 bins, and derived candidates
+#: between 200 kb and 20 Mb.
+CANDIDATE_MIN_OVERLAP = _consolidation.MIN_OVERLAP_FRACTION
+CANDIDATE_MAX_LENGTH_RATIO = _consolidation.MAX_LENGTH_RATIO
+CANDIDATE_MAX_COMBO = _consolidation.MAX_COMBO
+CANDIDATE_MIN_LENGTH = _consolidation.MIN_LENGTH
+CANDIDATE_MAX_LENGTH = _consolidation.MAX_LENGTH
+#: Directory for each kind of derived candidate, scored as one bin set each.
+CANDIDATE_SET_PREFIX = "bins_candidates_"
+#: Under work_files: the candidate pool, and which candidate became each consolidated bin.
+POOL_FILE = "consolidation_pool.json"
+CONSOLIDATED_BINS_FILE = "consolidated_bins.tsv"
 #: DAS_Tool's default score threshold, a quality floor on the bins it keeps (like -c/-x).
 DEFAULT_DASTOOL_SCORE = 0.5
 # ───────────────────────────────────────────────────────────────────────────────────────────
@@ -123,10 +157,9 @@ DEFAULT_DASTOOL_SCORE = 0.5
 def _parse_args(argv: List[str]) -> argparse.Namespace:
     p = make_parser(
         prog="metawrap2 bin_refinement",
-        usage="metawrap2 bin_refinement [options] -o output_dir -A bin_folderA "
-        "[-B bin_folderB ... -F bin_folderF]  |  --bins DIR [--bins DIR ...]",
-        description="Consolidate up to %d bin sets (from the same assembly) into a refined "
-        "set. Contig names must be consistent across the bin folders." % MAX_BIN_SETS,
+        usage="metawrap2 bin_refinement [options] -o output_dir -b DIR1,DIR2[,DIR3...]",
+        description="Consolidate any number of bin sets (from the same assembly) into a refined "
+        "set. Contig names must be consistent across the bin folders.",
     )
     p.add_argument("-o", "--output", required=True, help="output directory")
     threads_arg(p)
@@ -145,36 +178,41 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         default=DEFAULT_MAX_CONTAM,
         help="maximum acceptable %% contamination of bins",
     )
-    # -A..-F name the bin sets positionally. --bins can be repeated instead, which is easier to
-    # generate from a script.
-    p.add_argument("-A", "--bins-a", help="folder with metagenomic bins (.fa/.fasta)")
-    for letter in "BCDEF":
-        p.add_argument(
-            "-" + letter, "--bins-" + letter.lower(), help="another folder with metagenomic bins"
-        )
     p.add_argument(
-        "--bins",
+        "-b",
+        "--bin-sets",
         action="append",
         default=[],
-        dest="bins_extra",
-        metavar="DIR",
-        help="a folder with metagenomic bins; repeat once per bin set "
-        "(alternative to -A/-B/-C...)",
+        dest="bin_sets",
+        metavar="DIR1,DIR2,...",
+        help="the bin sets to consolidate: folders of bins (.fa/.fasta) from the same assembly, "
+        "comma-separated, or the option repeated once per folder. Order sets the internal names "
+        "binsA, binsB, ... A value that names an existing folder is taken whole, so a folder "
+        "whose name contains a comma can be given with -b on its own",
     )
+    # Older spellings: --bins DIR (repeated) and --bin_sets mean -b. -A..-F named up to six sets
+    # positionally; they still work but cannot be mixed with -b.
+    for alias in ("--bin_sets", "--bins"):
+        p.add_argument(alias, action="append", dest="bin_sets", help=argparse.SUPPRESS)
+    p.add_argument("-A", "--bins-a", help=argparse.SUPPRESS)
+    for letter in "BCDEF":
+        p.add_argument("-" + letter, "--bins-" + letter.lower(), help=argparse.SUPPRESS)
     p.add_argument(
         "--refine-combinations",
         choices=COMBINATION_MODES,
-        default=DEFAULT_COMBINATIONS,
-        help="which bin-set combinations to build with Binning_refiner: "
+        default=None,
+        help="with --mw1-refinement, which bin-set combinations to build with Binning_refiner: "
         "'pairs-and-all' (default) every pair plus the all-way combination; "
         "'pairs' every pair only (cheaper); 'all' every subset of size >=2 "
-        "(the number grows exponentially). Has no effect with 2 or 3 bin sets.",
+        "(the number grows exponentially). Has no effect with 2 or 3 bin sets. Implies "
+        "--mw1-refinement unless --consolidator is given",
     )
     p.add_argument(
         "--skip-refinement",
         dest="refine",
         action="store_false",
-        help="don't use Binning_refiner to make refined bins from binner combinations",
+        help="don't use Binning_refiner to make refined bins from binner combinations. Implies "
+        "--mw1-refinement unless --consolidator is given",
     )
     p.add_argument(
         "--score-everything",
@@ -186,7 +224,8 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         "--skip-checkm",
         dest="run_checkm",
         action="store_false",
-        help="don't run CheckM to assess bins",
+        help="don't run CheckM to assess bins. Implies --mw1-refinement unless --consolidator "
+        "is given",
     )
     p.add_argument(
         "--skip-gunc",
@@ -201,7 +240,8 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         "--skip-consolidation",
         dest="consolidate",
         action="store_false",
-        help="don't choose the best version of each bin; just pick the best folder",
+        help="don't choose the best version of each bin; just pick the best folder. Implies "
+        "--mw1-refinement unless --consolidator is given",
     )
     amb = p.add_mutually_exclusive_group()
     amb.add_argument(
@@ -209,14 +249,16 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         dest="dereplicate",
         action="store_const",
         const="keep",
-        help="for contigs in more than one bin, keep them in all bins",
+        help="for contigs in more than one bin, keep them in all bins (--mw1-refinement; "
+        "implies it unless --consolidator is given)",
     )
     amb.add_argument(
         "--remove-ambiguous",
         dest="dereplicate",
         action="store_const",
         const="remove",
-        help="for contigs in more than one bin, remove them from all bins",
+        help="for contigs in more than one bin, remove them from all bins (--mw1-refinement; "
+        "implies it unless --consolidator is given)",
     )
     p.set_defaults(dereplicate="partial")  # default: keep only in the best bin
     p.add_argument(
@@ -237,20 +279,39 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         "Ignored with --checkm1",
     )
     add_scorer_args(p)
+    add_score_cache_arg(p)
     p.add_argument(
         "--consolidator",
-        choices=CONSOLIDATORS,
-        default=DEFAULT_CONSOLIDATOR,
-        help="how to merge the bin sets into one set: 'metawrap' (default) hybridises every "
-        "combination and scores each with CheckM; 'dastool' scores the input bins on "
-        "single-copy genes and aggregates in one pass. dastool needs -a and the "
-        "metawrap2-binqc env (created by `metawrap2 install-env bin_refinement`)",
+        default=None,
+        metavar="{%s}" % ",".join(CONSOLIDATORS),
+        help="how to merge the bin sets into one set: 'metawrap2' (default) adds unions and "
+        "differences of overlapping bins to their intersections, scores every candidate with "
+        "CheckM and keeps the best non-overlapping set; 'dastool' scores the input bins on "
+        "single-copy genes and aggregates in one pass, and needs -a and the metawrap2-binqc env "
+        "(created by `metawrap2 install-env bin_refinement`)",
+    )
+    p.add_argument(
+        "--mw1-refinement",
+        action="store_true",
+        help="consolidate with metaWRAP 1's method, the default up to 2.1.5: Binning_refiner "
+        "intersections of every bin-set combination, the best version of each bin chosen by "
+        "80%% overlap, and shared contigs dereplicated",
+    )
+    p.add_argument(
+        "--contamination-weight",
+        type=bounded_float(0, None),
+        default=None,
+        metavar="W",
+        help="rank candidate bins by completeness - W * contamination (default %g). A lower W "
+        "favours more complete bins over cleaner ones. Refused with --mw1-refinement and "
+        "--consolidator dastool, which rank with the fixed weight %g"
+        % (CONTAMINATION_WEIGHT, CONTAMINATION_WEIGHT),
     )
     p.add_argument(
         "-a",
         "--assembly",
         help="assembly the bins came from (required by --consolidator dastool, which reads the "
-        "contigs itself; MetaWrap2's own consolidation does not need it)",
+        "contigs itself; the default and --mw1-refinement do not need it)",
     )
     p.add_argument(
         "--dastool-score",
@@ -259,35 +320,150 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         help="DAS_Tool --score_threshold: minimum bin score to keep",
     )
     p.add_argument("--config", help="path to metawrap2.toml")
-    return p.parse_args(argv)
+    args = p.parse_args(argv)
+    if args.consolidator is not None and args.consolidator not in (
+        CONSOLIDATORS + (MW1_CONSOLIDATOR,) + tuple(CONSOLIDATOR_ALIASES)
+    ):
+        p.error(
+            "argument --consolidator: invalid choice: %r (choose from %s)"
+            % (args.consolidator, ", ".join(repr(c) for c in CONSOLIDATORS))
+        )
+    return args
+
+
+def _mw1_only_options(args) -> List[str]:
+    """The options given in *args* that only metaWRAP 1's method uses."""
+    found = []
+    if not args.run_checkm:
+        found.append("--skip-checkm")
+    if not args.refine:
+        found.append("--skip-refinement")
+    if not args.consolidate:
+        found.append("--skip-consolidation")
+    if args.refine_combinations is not None:
+        found.append("--refine-combinations")
+    if args.dereplicate == "keep":
+        found.append("--keep-ambiguous")
+    elif args.dereplicate == "remove":
+        found.append("--remove-ambiguous")
+    return found
+
+
+def resolve_consolidator(args) -> str:
+    """Set ``args.consolidator`` to the method this run uses, and return it.
+
+    The result is ``metawrap2`` (the default), ``metawrap1`` (metaWRAP 1's method) or ``dastool``.
+
+    * An old name in --consolidator is mapped (``hybrid`` to metawrap2, ``metawrap`` to metaWRAP 1's
+      method), with a note.
+    * --mw1-refinement selects metaWRAP 1's method. It conflicts with --consolidator metawrap2 or
+      dastool.
+    * Without --consolidator, an option that only metaWRAP 1's method uses (--skip-checkm,
+      --skip-refinement, --skip-consolidation, --refine-combinations, --keep-ambiguous,
+      --remove-ambiguous) selects it, with a note, so those options work as they did up to 2.1.5.
+      With an explicit --consolidator metawrap2 they are an error.
+    * --contamination-weight is an error with any method other than metawrap2.
+    """
+    given = args.consolidator
+    if given in CONSOLIDATOR_ALIASES:
+        mapped = CONSOLIDATOR_ALIASES[given]
+        comm(
+            "--consolidator %s is an older name; using %s."
+            % (
+                given,
+                "--mw1-refinement" if mapped == MW1_CONSOLIDATOR else "--consolidator " + mapped,
+            )
+        )
+        given = mapped
+    if args.mw1_refinement:
+        if given in CONSOLIDATORS:
+            error(
+                "--mw1-refinement and --consolidator %s cannot be used together: each picks a "
+                "consolidator.\n"
+                "Drop --consolidator to use metaWRAP 1's method, or drop --mw1-refinement to use "
+                "%s." % (given, given)
+            )
+        given = MW1_CONSOLIDATOR
+    mw1_options = _mw1_only_options(args)
+    if given is None:
+        if mw1_options:
+            comm(
+                "%s applies to metaWRAP 1's refinement, so this run uses it (--mw1-refinement)."
+                % " and ".join(mw1_options)
+            )
+            given = MW1_CONSOLIDATOR
+        else:
+            given = DEFAULT_CONSOLIDATOR
+    elif given == "metawrap2" and mw1_options:
+        error(
+            "--consolidator metawrap2 and %s cannot be used together: %s applies to metaWRAP 1's "
+            "refinement only.\n"
+            "Drop --consolidator metawrap2 to use metaWRAP 1's method, or drop %s."
+            % (mw1_options[0], mw1_options[0], mw1_options[0])
+        )
+    if args.contamination_weight is not None and given != "metawrap2":
+        label = "--mw1-refinement" if given == MW1_CONSOLIDATOR else "--consolidator " + given
+        error(
+            "--contamination-weight cannot be used with %s, which ranks bins with the fixed "
+            "weight %g.\n"
+            "Drop --contamination-weight, or drop %s to use the default consolidator."
+            % (label, CONTAMINATION_WEIGHT, label)
+        )
+    if args.contamination_weight is None:
+        args.contamination_weight = CONTAMINATION_WEIGHT
+    if args.refine_combinations is None:
+        args.refine_combinations = DEFAULT_COMBINATIONS
+    args.consolidator = given
+    return given
+
+
+def _split_bin_sets(values: Sequence[str]) -> List[str]:
+    """The folders named by -b values: each comma-separated, unless the value is a folder."""
+    found: List[str] = []
+    for value in values:
+        if os.path.isdir(os.path.expanduser(value)) or "," not in value:
+            found.append(value)
+        else:
+            found.extend(part.strip() for part in value.split(",") if part.strip())
+    return found
 
 
 def collect_bin_sets(args) -> List[str]:
-    """The input bin-set directories, in order: -A..-F first, then any repeated --bins.
+    """The input bin-set directories, in order: from -b, or from the older -A..-F.
 
     Order sets each label (binsA, binsB, ...), and therefore the refinement plan and the bin
     numbering in each refined set, so it is part of the interface.
     """
-    ordered: List[str] = []
-    for letter in "abcdef":
-        value = getattr(args, "bins_" + letter, None)
-        if value:
-            ordered.append(value)
-    for value in getattr(args, "bins_extra", []) or []:
-        if value not in ordered:
-            ordered.append(value)
+    lettered = [
+        getattr(args, "bins_" + letter) for letter in "abcdef" if getattr(args, "bins_" + letter)
+    ]
+    listed = _split_bin_sets(getattr(args, "bin_sets", None) or [])
+    if lettered and listed:
+        error(
+            "Give the bin sets one way: -b DIR1,DIR2,... or the older -A/-B/-C..., not both.\n"
+            "For example: -b %s" % ",".join(lettered + listed)
+        )
+    ordered = [os.path.abspath(os.path.expanduser(p)) for p in (lettered or listed)]
     if not ordered:
-        error(
-            "No bin sets given. Pass at least one with -A (and -B, -C, ... for more), or "
-            "repeat --bins DIR."
-        )
-    if len(ordered) > MAX_BIN_SETS:
-        error(
-            "%d bin sets given, but at most %d are supported.\n"
-            "Every combination is refined and scored with CheckM, so the cost grows "
-            "quickly with more sets. Refine in groups: consolidate the first few, then "
-            "consolidate that result with the rest." % (len(ordered), MAX_BIN_SETS)
-        )
+        error("No bin sets given. Pass them with -b DIR1,DIR2,... (or -b once per folder).")
+    seen: Dict[str, str] = {}
+    for path in ordered:
+        key = os.path.realpath(path)
+        if key in seen:
+            error(
+                "The bin set %s is given twice%s. Give each folder once."
+                % (path, "" if seen[key] == path else " (also as %s)" % seen[key])
+            )
+        seen[key] = path
+    if not dry_run():
+        # A dry run plans a study whose bin folders do not exist yet.
+        missing = [path for path in ordered if not os.path.isdir(path)]
+        if missing:
+            error(
+                "Not a folder: %s.\nEach bin set is a folder of bins. Paths given to -b are "
+                "separated by commas, so a path with a comma in it must name an existing folder "
+                "and be given with -b on its own." % ", ".join(missing)
+            )
     return ordered
 
 
@@ -331,8 +507,13 @@ def write_empty_result(out: str, completeness: float, contamination: float) -> s
 
 
 def bin_set_label(index: int) -> str:
-    """The internal name of the *index*-th input bin set: binsA, binsB, ... binsF."""
-    return "bins" + chr(ord("A") + index)
+    """The internal name of the *index*-th input bin set: binsA ... binsZ, then binsAA, binsAB, ..."""
+    letters = ""
+    index += 1
+    while index:
+        index, rest = divmod(index - 1, 26)
+        letters = chr(ord("A") + rest) + letters
+    return "bins" + letters
 
 
 def combined_label(labels: Sequence[str]) -> str:
@@ -591,6 +772,175 @@ def _run_dastool(args, env: Optional[str], out: str, labels: Sequence[str]) -> N
         )
 
 
+def _candidate_set_dirs(out: str) -> List[str]:
+    """The derived-candidate sets of a default-consolidator run present in *out*, sorted."""
+    return [
+        name
+        for name in sorted(listdir(out))
+        if name.startswith(CANDIDATE_SET_PREFIX) and os.path.isdir(os.path.join(out, name))
+    ]
+
+
+def _build_candidate_pool(out: str, labels: Sequence[str]) -> None:
+    """Build the default consolidator's candidate pool from the input bin sets in *out*.
+
+    The input bins are candidates where they are, in binsA, binsB, ... Each kind of derived
+    candidate is written as its own bin set (``bins_candidates_union`` and so on) so the CheckM step
+    scores it with the input sets, in parallel under ``--checkm-jobs``. Contig sequences come from
+    the input bins, so no assembly is needed. The pool, with each candidate's contigs, is recorded
+    in ``work_files/consolidation_pool.json`` for the consolidation step.
+    """
+    bins: Dict[str, frozenset] = {}
+    files: Dict[str, str] = {}
+    sequences: Dict[str, str] = {}
+    for label in labels:
+        for path in fasta_files(os.path.join(out, label)):
+            name = "%s/%s" % (label, os.path.splitext(os.path.basename(path))[0])
+            contigs = []
+            for header, seq in iter_fasta(path):
+                contig = contig_id(header)
+                contigs.append(contig)
+                sequences.setdefault(contig, seq)
+            if contigs:
+                bins[name] = frozenset(contigs)
+                files[name] = os.path.relpath(path, out)
+    lengths = {contig: len(seq) for contig, seq in sequences.items()}
+    pool = _consolidation.build_candidates(
+        bins,
+        lengths,
+        max_combo=CANDIDATE_MAX_COMBO,
+        min_overlap=CANDIDATE_MIN_OVERLAP,
+        max_length_ratio=CANDIDATE_MAX_LENGTH_RATIO,
+        min_length=CANDIDATE_MIN_LENGTH,
+        max_length=CANDIDATE_MAX_LENGTH,
+    )
+
+    # A resumed run rebuilds every derived set, so none is left half-written.
+    for name in _candidate_set_dirs(out):
+        shutil.rmtree(os.path.join(out, name))
+    numbers: Dict[str, int] = {}
+    records = []
+    for cand in pool.values():
+        if cand.kind == _consolidation.ORIGINAL:
+            rel = files[cand.parents[0]]
+        else:
+            set_dir = CANDIDATE_SET_PREFIX + cand.kind
+            numbers[cand.kind] = numbers.get(cand.kind, 0) + 1
+            rel = os.path.join(set_dir, bin_filename(numbers[cand.kind]))
+            ensure_dir(os.path.join(out, set_dir))
+            with open(os.path.join(out, rel), "w") as fh:
+                fh.writelines(">%s\n%s\n" % (c, sequences[c]) for c in sorted(cand.contigs))
+        records.append(
+            {
+                "file": rel,
+                "signature": cand.signature,
+                "kind": cand.kind,
+                "parents": list(cand.parents),
+                "contigs": sorted(cand.contigs),
+            }
+        )
+    work = os.path.join(out, "work_files")
+    ensure_dir(work)
+    path = os.path.join(work, POOL_FILE)
+    with open(path + ".tmp", "w") as fh:
+        json.dump({"lengths": dict(sorted(lengths.items())), "candidates": records}, fh)
+    os.replace(path + ".tmp", path)
+    kinds = _consolidation.count_kinds(pool.values())
+    comm(
+        "candidate pool: %d candidates from %d input bins (%s)"
+        % (len(pool), len(bins), ", ".join("%d %s" % (n, k) for k, n in kinds.items()))
+    )
+
+
+def _read_stats_rows(stats_path: str) -> Dict[str, List[str]]:
+    """``{bin name: row}`` from a ``.stats.tsv``, or an empty dict if there is none."""
+    rows: Dict[str, List[str]] = {}
+    if not os.path.isfile(stats_path):
+        return rows
+    with open(stats_path) as fh:
+        fh.readline()
+        for line in fh:
+            cut = line.rstrip("\n").split("\t")
+            if len(cut) >= 3:
+                rows[cut[0]] = cut
+    return rows
+
+
+def _consolidate_candidates(out: str, comp: float, cont: float, weight: float) -> None:
+    """Select the default consolidator's bins into ``binsO`` from the scored candidate pool.
+
+    Each candidate's score is read from the ``.stats.tsv`` of the set its file is in. The selected
+    bins share no contig, so they are not dereplicated. ``work_files/consolidated_bins.tsv`` records the
+    candidate behind each bin, how it was made and the score it was chosen on.
+    """
+    work = os.path.join(out, "work_files")
+    with open(os.path.join(work, POOL_FILE)) as fh:
+        saved = json.load(fh)
+    lengths = saved["lengths"]
+    pool: Dict[str, _consolidation.Candidate] = {}
+    files: Dict[str, str] = {}
+    stats_rows: Dict[str, Dict[str, List[str]]] = {}
+    scores: Dict[str, Tuple[float, float]] = {}
+    rows: Dict[str, List[str]] = {}
+    for record in saved["candidates"]:
+        key = record["signature"]
+        pool[key] = _consolidation.Candidate(
+            key, frozenset(record["contigs"]), record["kind"], tuple(record["parents"])
+        )
+        files[key] = record["file"]
+        set_dir = os.path.dirname(record["file"])
+        if set_dir not in stats_rows:
+            stats_rows[set_dir] = _read_stats_rows(os.path.join(out, set_dir + STATS_SUFFIX))
+        row = stats_rows[set_dir].get(os.path.splitext(os.path.basename(record["file"]))[0])
+        if row is not None:
+            scores[key] = (float(row[1]), float(row[2]))
+            rows[key] = row
+    unscored = len(pool) - len(scores)
+    if unscored:
+        warning("%d candidate bin(s) have no CheckM score and are not considered" % unscored)
+
+    result = _consolidation.select(
+        pool, scores, comp, cont, weight=weight, lookahead=True, lengths=lengths
+    )
+    binsO = os.path.join(out, "binsO")
+    ensure_dir(binsO)
+    stats_lines = ["\t".join(_checkm.STATS_HEADER) + "\n"]
+    table = ["bin\tkind\tparents\tcompleteness\tcontamination\tscore\tcandidate\n"]
+    for number, picked in enumerate(result.chosen, start=1):
+        key = picked.candidate.signature
+        shutil.copy(os.path.join(out, files[key]), os.path.join(binsO, bin_filename(number)))
+        stem = os.path.splitext(bin_filename(number))[0]
+        stats_lines.append("\t".join([stem] + rows[key][1:]) + "\n")
+        table.append(
+            "%s\t%s\t%s\t%s\t%s\t%.4f\t%s\n"
+            % (
+                stem,
+                picked.candidate.kind,
+                ",".join(picked.candidate.parents),
+                rows[key][1],
+                rows[key][2],
+                picked.score,
+                files[key],
+            )
+        )
+    with open(binsO + STATS_SUFFIX, "w") as fh:
+        fh.writelines(stats_lines)
+    with open(os.path.join(work, CONSOLIDATED_BINS_FILE), "w") as fh:
+        fh.writelines(table)
+    kinds = _consolidation.count_kinds(result.chosen)
+    comm(
+        "selected %d bins (%s) at contamination weight %g; %d candidate(s) overlapped a "
+        "better one, %d derived candidate(s) were refused by the lookahead check"
+        % (
+            len(result.chosen),
+            ", ".join("%d %s" % (n, k) for k, n in kinds.items()),
+            weight,
+            result.blocked,
+            result.rejected_by_lookahead,
+        )
+    )
+
+
 def _refine(out: str, env: Optional[str], inputs: Sequence[str], dest: str) -> None:
     """Run Binning_refiner on any number of bin folders (relative to *out*) into *dest*.
 
@@ -747,6 +1097,48 @@ def _check_resumed_scorer(out: str, args, resume: bool) -> None:
             fh.write(wanted + "\n")
 
 
+#: Written under work_files by a default-consolidator run, so ``--resume`` can tell its output from
+#: metaWRAP 1's method, whose runs (including all runs from before 2.1.6) never write it.
+CONSOLIDATOR_FILE = "consolidator.txt"
+
+
+def _check_resumed_consolidator(out: str, args, ckpt) -> None:
+    """Stop a ``--resume`` that would continue a run with the other consolidation method.
+
+    The two methods build different candidate sets, so continuing one with the other mixes them.
+    A metaWRAP 1 run is recognised by its finished Binning_refiner step.
+    """
+    path = os.path.join(out, "work_files", CONSOLIDATOR_FILE)
+    if ckpt.resume:
+        recorded = None
+        if os.path.isfile(path):
+            with open(path) as fh:
+                recorded = fh.read().strip() or None
+        elif ckpt.finished("refine"):
+            recorded = MW1_CONSOLIDATOR
+        if recorded and recorded != args.consolidator and args.consolidator != "dastool":
+            if recorded == MW1_CONSOLIDATOR:
+                error(
+                    "%s was started with metaWRAP 1's refinement (the default up to 2.1.5).\n"
+                    "Resume with --mw1-refinement, or start again with --force to use the "
+                    "current default." % out
+                )
+            error(
+                "%s was started with the default consolidator (metawrap2).\n"
+                "Resume without --mw1-refinement, or start again with --force." % out
+            )
+    if dry_run():
+        return
+    if args.consolidator != DEFAULT_CONSOLIDATOR:
+        if not ckpt.resume and os.path.isfile(path):
+            os.remove(path)  # left by a default-consolidator run this one replaces (--force)
+        return
+    if not ckpt.resume or not os.path.isfile(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as fh:
+            fh.write(args.consolidator + "\n")
+
+
 def checkm_jobs(args, n_sets: int) -> int:
     """How many of *n_sets* bin sets to score at once: ``--checkm-jobs``, or the memory budget."""
     asked = getattr(args, "checkm_jobs", 0) or 0
@@ -880,6 +1272,7 @@ def _bin_set_dirs(out: str) -> List[str]:
 
 def main(argv: List[str]) -> int:
     args = _parse_args(argv)
+    resolve_consolidator(args)
     settings = load_settings(args.config)
     resolve_threads(args, settings)
     resolve_memory_gb(args, settings)
@@ -896,13 +1289,15 @@ def main(argv: List[str]) -> int:
     gunc_env = env
     # An external consolidator needs the assembly; check before copying bins or running prodigal.
     # DAS Tool is installed with CheckM1, so its env needs no separate check.
-    external = args.consolidator != "metawrap"
+    external = args.consolidator == "dastool"
+    candidates = args.consolidator == "metawrap2"
     external_env = env if external else None
     if external and not args.assembly:
         error(
             "--consolidator %s reads the assembly contigs, so it needs -a/--assembly.\n"
             "Pass the assembly the bins were made from. The default consolidator "
-            "(--consolidator metawrap) uses only the bins and does not need -a." % args.consolidator
+            "(--consolidator metawrap2) uses only the bins and does not need -a."
+            % args.consolidator
         )
     if external and not args.consolidate:
         # Reported as a conflict instead of resolved by precedence.
@@ -913,6 +1308,15 @@ def main(argv: List[str]) -> int:
             "bin set without mixing bins." % (args.consolidator, args.consolidator)
         )
     given = collect_bin_sets(args)
+    if args.consolidator == MW1_CONSOLIDATOR and len(given) > MW1_MAX_BIN_SETS:
+        error(
+            "%d bin sets given, but --mw1-refinement takes at most %d.\n"
+            "metaWRAP 1's method refines and scores combinations of the bin sets with CheckM, so "
+            "its cost grows quickly with more sets. The default consolidator (without "
+            "--mw1-refinement) takes any number of bin sets. Or refine in groups: consolidate "
+            "the first few, then consolidate that result with the rest."
+            % (len(given), MW1_MAX_BIN_SETS)
+        )
     bin_sets = drop_empty_bin_sets(given)
     if not bin_sets:
         rec = start_run("bin_refinement", args, env, settings, inputs=list(given))
@@ -1016,11 +1420,25 @@ def main(argv: List[str]) -> int:
         # One CheckM score cache for the whole refinement: the hybrid sets overlap (32% identical
         # bins across the seven sets of a three-binner run). Kept under work_files for --resume.
         # One file per scorer, so a resume with the other scorer cannot reuse these scores.
+        # Bins scored by earlier runs with the same scorer, version and database are reused from
+        # the shared cache (metawrap2.scorecache), unless --no-score-cache.
+        shared_scores = (
+            open_score_cache(
+                args,
+                settings,
+                scorer_name(args),
+                ttable=args.checkm2_ttable if args.checkm2 else None,
+                env=(checkm2_env or env) if args.checkm2 else env,
+            )
+            if args.run_checkm
+            else None
+        )
         score_cache = _checkm.BinScoreCache(
-            os.path.join(out, "work_files", SCORE_CACHE % scorer_name(args))
+            os.path.join(out, "work_files", SCORE_CACHE % scorer_name(args)), shared=shared_scores
         )
         if args.run_checkm:
             _check_resumed_scorer(out, args, ckpt.resume)
+        _check_resumed_consolidator(out, args, ckpt)
 
         comm("Removing special characters from contig names...")
         rewritten = 0
@@ -1035,6 +1453,15 @@ def main(argv: List[str]) -> int:
                 "Skipping bin refinement: %s consolidates the input bin sets directly, without "
                 "building combinations." % args.consolidator
             )
+        elif candidates and n_binnings >= 2:
+            if dry_run():
+                comm("(dry run) would build the candidate pool from the %d bin sets" % n_binnings)
+            elif ckpt.todo("candidate_pool"):
+                announcement("BUILDING CANDIDATE BINS")
+                _build_candidate_pool(out, [label for label, _src in folders])
+                ckpt.done("candidate_pool")
+            else:
+                comm("skipping the candidate pool (already built; --resume)")
         elif args.refine and n_binnings >= 2:
             if ckpt.todo("refine"):
                 announcement("BEGIN BIN REFINEMENT")
@@ -1125,6 +1552,24 @@ def main(argv: List[str]) -> int:
             else:
                 comm("skipping %s consolidation (already done; --resume)" % args.consolidator)
             best_bin_set = "binsO"
+        elif candidates and n_binnings >= 2:
+            announcement(
+                "CONSOLIDATING ALL BIN SETS FROM INTERSECTION, UNION AND DIFFERENCE CANDIDATES"
+            )
+            if dry_run():
+                comm(
+                    "(dry run) would select non-overlapping candidates into binsO by completeness "
+                    "- %g * contamination" % args.contamination_weight
+                )
+            elif ckpt.todo("consolidate"):
+                binsO = os.path.join(out, "binsO")
+                # A crashed attempt leaves a partial binsO.
+                shutil.rmtree(binsO, ignore_errors=True)
+                _consolidate_candidates(out, comp, cont, args.contamination_weight)
+                ckpt.done("consolidate")
+            else:
+                comm("skipping consolidation (already done; --resume)")
+            best_bin_set = "binsO"
         elif args.consolidate and args.run_checkm:
             announcement("CONSOLIDATING ALL BIN SETS BY CHOOSING THE BEST VERSION OF EACH BIN")
             if n_binnings == 1:
@@ -1214,9 +1659,10 @@ def main(argv: List[str]) -> int:
         if ckpt.todo("finalize") and not dry_run():
             # With the built-in consolidation, --keep-ambiguous skips the re-score because binsO is
             # binsM unchanged and already scored. An external consolidator's output has not been
-            # scored, so it is always re-scored.
+            # scored, so it is always re-scored. The default's bins are scored candidates, so its
+            # re-score comes from the score cache and runs no CheckM.
             rescore = args.run_checkm and best_bin_set == "binsO"
-            if rescore and not external and args.dereplicate == "keep":
+            if rescore and args.consolidator == MW1_CONSOLIDATOR and args.dereplicate == "keep":
                 rescore = False
             if rescore:
                 binsO = os.path.join(out, "binsO")

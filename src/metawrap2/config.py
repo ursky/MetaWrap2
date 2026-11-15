@@ -402,10 +402,16 @@ class Settings:
     #: budget applies. None (not 1) keeps "unset" distinct from "one thread".
     threads: Optional[int] = None
     use_conda_envs: bool = True
+    #: Path to the mamba or conda executable, for when neither is on PATH (a non-login shell or a
+    #: batch job). Empty means PATH, $MAMBA_EXE, $CONDA_EXE and the usual install locations.
+    env_manager: str = ""
     #: Where modules put temporary space. Empty means inside the run's output directory. On a
     #: cluster /tmp is often small and node-local, and metaSPAdes intermediates can reach hundreds
     #: of GB. See metawrap2.scratch.
     scratch_dir: str = ""
+    #: Where bin scores are kept between runs (see metawrap2.scorecache). None means unset, and
+    #: the default under ~/.metawrap2 applies; an empty string turns the shared cache off.
+    score_cache_dir: Optional[str] = None
     #: Set true to skip the pre-flight disk-space estimate.
     skip_space_check: bool = False
     #: Set true to make a failed disk-space estimate stop the run instead of warning. Useful on
@@ -452,6 +458,8 @@ SETTINGS_KEYS = {
     "threads": "default thread count for every module",
     "use_conda_envs": "run tools inside the metawrap2-* conda envs (true) or off PATH (false)",
     "scratch_dir": "where modules put temporary space",
+    "env_manager": "path to the mamba or conda executable, if neither is on PATH",
+    "score_cache_dir": "where bin scores are kept between runs (empty to turn this off)",
     "skip_space_check": "skip the pre-flight disk-space estimate",
     "strict_space_check": "let a failed disk-space estimate stop the run, not just warn",
     "heartbeat_seconds": "seconds of silence before a step says it is still running (0 for never)",
@@ -685,6 +693,12 @@ def load_settings(explicit: Optional[str] = None, strict: bool = True) -> Settin
         threads=int(configured_threads) if configured_threads is not None else None,
         use_conda_envs=bool(data.get("settings", {}).get("use_conda_envs", True)),
         scratch_dir=str(data.get("settings", {}).get("scratch_dir", "") or ""),
+        env_manager=str(settings_table.get("env_manager", "") or ""),
+        score_cache_dir=(
+            None
+            if settings_table.get("score_cache_dir") is None
+            else str(settings_table.get("score_cache_dir"))
+        ),
         skip_space_check=bool(data.get("settings", {}).get("skip_space_check", False)),
         strict_space_check=bool(data.get("settings", {}).get("strict_space_check", False)),
         heartbeat_seconds=optional_float("heartbeat_seconds"),
