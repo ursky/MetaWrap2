@@ -253,6 +253,55 @@ def test_a_cost_over_a_day_is_parsed(monkeypatch):
     assert result.usage["user_seconds"] == 90000.0
 
 
+# --- final state from scontrol ---------------------------------------------------------------
+
+
+def test_scontrol_can_recover_a_completed_job(monkeypatch):
+    calls = []
+
+    def fake_run(argv, timeout=60):
+        calls.append(list(argv))
+        return _done("JobId=123 JobName=test JobState=COMPLETED " "RunTime=00:01:00 ExitCode=0:0\n")
+
+    monkeypatch.setattr(slurm, "_run", fake_run)
+
+    result = slurm.controller_result("123")
+
+    assert result is not None
+    assert result.ok
+    assert result.state == "COMPLETED"
+    assert result.returncode == 0
+    assert result.usage == {}
+    assert calls == [["scontrol", "--oneliner", "show", "job", "123"]]
+
+
+def test_scontrol_recovers_a_failed_job(monkeypatch):
+    monkeypatch.setattr(
+        slurm,
+        "_run",
+        lambda argv, timeout=60: _done("JobId=123 JobState=TIMEOUT ExitCode=0:15\n"),
+    )
+
+    result = slurm.controller_result("123")
+
+    assert result is not None
+    assert result.state == "TIMEOUT"
+    assert not result.ok
+
+
+def test_scontrol_returns_none_for_a_purged_job(monkeypatch):
+    monkeypatch.setattr(
+        slurm,
+        "_run",
+        lambda argv, timeout=60: _done(
+            returncode=1,
+            stderr="slurm_load_jobs error: Invalid job id specified",
+        ),
+    )
+
+    assert slurm.controller_result("123") is None
+
+
 # --- queue state ----------------------------------------------------------------------------
 
 
@@ -340,7 +389,8 @@ def test_a_job_with_no_accounting_record_ends_the_wait(monkeypatch, no_sleep):
     monkeypatch.setattr(slurm, "ACCOUNTING_TIMEOUT_SECONDS", 0)
     fake = FakeScheduler("123", [(None, [])])
     monkeypatch.setattr(slurm, "_run", fake.run)
-    with pytest.raises(slurm.SlurmError, match="sacct -j 123"):
+    monkeypatch.setattr(slurm, "controller_result", lambda job_id: None)
+    with pytest.raises(slurm.JobOutcomeUnknown, match="final outcome is unknown"):
         slurm.wait_for_job("123", 5)
 
 
@@ -363,6 +413,68 @@ def test_the_wait_sleeps_for_the_poll_interval(monkeypatch):
     assert slept == [45]
     with pytest.raises(ValueError):
         slurm.wait_for_job("123", 0)
+
+
+def test_waiting_falls_back_to_scontrol_when_accounting_is_unavailable(monkeypatch, no_sleep):
+    calls = []
+
+    def fake_run(argv, timeout=60):
+        calls.append(list(argv))
+
+        if argv[0] == slurm.SQUEUE:
+            return _done("")
+
+        if argv[0] == slurm.SACCT:
+            return _done(
+                returncode=1,
+                stderr="Slurm accounting storage is disabled",
+            )
+
+        if argv[0] == slurm.SCONTROL:
+            return _done("JobId=123 JobState=COMPLETED ExitCode=0:0\n")
+
+        raise AssertionError(argv)
+
+    monkeypatch.setattr(slurm, "_run", fake_run)
+
+    result = slurm.wait_for_job("123", 5)
+
+    assert result.ok
+    assert [call[0] for call in calls] == [
+        slurm.SQUEUE,
+        slurm.SACCT,
+        slurm.SCONTROL,
+    ]
+
+
+def test_a_purged_job_with_unavailable_accounting_remains_unknown(monkeypatch, no_sleep):
+    monkeypatch.setattr(slurm, "ACCOUNTING_TIMEOUT_SECONDS", 0)
+
+    def fake_run(argv, timeout=60):
+        if argv[0] == slurm.SQUEUE:
+            return _done("")
+
+        if argv[0] == slurm.SACCT:
+            return _done(
+                returncode=1,
+                stderr="slurm_persist_conn_open_without_init: Connection timed out",
+            )
+
+        if argv[0] == slurm.SCONTROL:
+            return _done(
+                returncode=1,
+                stderr="slurm_load_jobs error: Invalid job id specified",
+            )
+
+        raise AssertionError(argv)
+
+    monkeypatch.setattr(slurm, "_run", fake_run)
+
+    with pytest.raises(
+        slurm.JobOutcomeUnknown,
+        match="final outcome is unknown",
+    ):
+        slurm.wait_for_job("123", 5)
 
 
 # --- cancelling and finding jobs ------------------------------------------------------------

@@ -26,3 +26,19 @@ def test_a_file_valued_database_pointing_at_a_file_is_usable(tmp_path):
     described = dbcheck.describe(str(db), "CHECKM_DB")
     assert described["status"] == dbcheck.MISSING
     assert described["problem"] == "not a directory"
+
+
+def test_checkm2_database_accepts_file(tmp_path):
+    """CHECKM2DB points to a DIAMOND file, not a directory."""
+    db = tmp_path / "uniref100.KO.1.dmnd"
+    db.write_bytes(b"not really diamond, but a file")
+
+    described = dbcheck.describe(str(db), "CHECKM2DB")
+    assert described["status"] == dbcheck.OK
+    assert described["files"] == 1
+    assert described["key_file_bytes"] == db.stat().st_size
+
+    # CHECKM2DB pointing at a directory is invalid.
+    described = dbcheck.describe(str(tmp_path), "CHECKM2DB")
+    assert described["status"] == dbcheck.MISSING
+    assert described["problem"] == "not a file"

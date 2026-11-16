@@ -220,6 +220,13 @@ def _capture(monkeypatch):
     return calls
 
 
+def _eligible_assembly(tmp_path):
+    """Create a valid assembly for SemiBin2 preflight tests."""
+    assembly = tmp_path / "assembly.fa"
+    assembly.write_text(">contig1\n" + "ACGT" * 1000 + "\n")
+    return str(assembly)
+
+
 @pytest.mark.parametrize("binner", ("_run_semibin2", "_run_vamb", "_run_comebin"))
 def test_every_gpu_binner_checks_the_card_before_it_starts(binner, tmp_path, monkeypatch):
     """Each GPU binner runs the preflight; a missing card index stops it before any command."""
@@ -229,8 +236,15 @@ def test_every_gpu_binner_checks_the_card_before_it_starts(binner, tmp_path, mon
     work = tmp_path / "work"
     work.mkdir()
     (work / "sample_0.bam").write_text("")
+    assembly = _eligible_assembly(tmp_path)
+
     with pytest.raises(SystemExit):
-        getattr(binning, binner)(_Args(str(tmp_path / "out"), "cuda:3"), "e", str(work), "asm.fa")
+        getattr(binning, binner)(
+            _Args(str(tmp_path / "out"), "cuda:3"),
+            "e",
+            str(work),
+            assembly,
+        )
     assert calls == []
 
 
@@ -240,14 +254,16 @@ def test_a_shared_card_lets_the_step_run_unless_strict(tmp_path, monkeypatch):
     work = tmp_path / "work"
     work.mkdir()
     (work / "sample_0.bam").write_text("")
-    binning._run_semibin2(_Args(str(tmp_path / "out"), "cuda:3"), "e", str(work), "asm.fa")
+    assembly = _eligible_assembly(tmp_path)
+
+    binning._run_semibin2(_Args(str(tmp_path / "out"), "cuda:3"), "e", str(work), assembly)
     assert len(calls) == 1
     assert calls[0][1]["extra_env"] == {"CUDA_VISIBLE_DEVICES": "3"}
 
     calls.clear()
     with pytest.raises(SystemExit):
         binning._run_semibin2(
-            _Args(str(tmp_path / "out"), "cuda:3", strict_gpu=True), "e", str(work), "asm.fa"
+            _Args(str(tmp_path / "out"), "cuda:3", strict_gpu=True), "e", str(work), assembly
         )
     assert calls == []
 
@@ -262,7 +278,14 @@ def test_a_cpu_step_does_not_touch_the_driver(tmp_path, monkeypatch):
     work = tmp_path / "work"
     work.mkdir()
     (work / "sample_0.bam").write_text("")
-    binning._run_semibin2(_Args(str(tmp_path / "out"), "cpu"), "e", str(work), "asm.fa")
+    assembly = _eligible_assembly(tmp_path)
+
+    binning._run_semibin2(
+        _Args(str(tmp_path / "out"), "cpu"),
+        "e",
+        str(work),
+        assembly,
+    )
     assert len(calls) == 1
 
 
